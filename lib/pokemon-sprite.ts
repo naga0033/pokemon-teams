@@ -35,10 +35,16 @@ export function getOfficialArtworkUrl(slug: string): string {
  * 英語 slug から Pokemon HOME 風のスプライト URL を返す
  * カード一覧ではこちらの方が軽くて映える
  */
+// home スプライトが存在しないフォームは official-artwork にフォールバック
+const HOME_MISSING = new Set([10061]);
+
 export function getHomeSpriteUrl(slug: string): string {
   const id = getPokemonId(slug);
   if (id == null) {
     return `${HOME_BASE}/0.png`;
+  }
+  if (HOME_MISSING.has(id)) {
+    return `${OFFICIAL_ARTWORK_BASE}/${id}.png`;
   }
   return `${HOME_BASE}/${id}.png`;
 }
