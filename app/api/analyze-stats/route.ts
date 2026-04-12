@@ -138,7 +138,7 @@ export async function POST(req: Request) {
   let rawText = "";
   try {
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       messages: [
