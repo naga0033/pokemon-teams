@@ -7,7 +7,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { cropTeamImage, dataUrlToBlob } from "@/lib/image-crop";
 import { getHomeSpriteUrl } from "@/lib/pokemon-sprite";
-import { getEnSlug } from "@/lib/pokemon-names";
+import { getEnSlug, EN_TO_JA } from "@/lib/pokemon-names";
+import { MOVE_NAMES_JA } from "@/lib/move-names";
+import { ABILITY_NAMES_JA } from "@/lib/ability-names";
+import { ITEMS } from "@/lib/items";
+import { NATURES } from "@/lib/natures";
+import { SearchableSelect } from "@/components/admin/SearchableSelect";
+import { NatureIndicatorLabel } from "@/components/admin/NatureIndicator";
 
 type TweetData = {
   tweetId: string;
@@ -51,6 +57,12 @@ type ParsedTeam = {
 };
 
 type Stage = "idle" | "fetching" | "analyzing" | "saving";
+
+// 検索ドロップダウン用のマスターデータリスト
+const POKEMON_JA_OPTIONS = Array.from(new Set(Object.values(EN_TO_JA))).filter(Boolean).sort();
+const MOVE_JA_OPTIONS = Array.from(new Set(Object.values(MOVE_NAMES_JA))).filter(Boolean).sort();
+const ABILITY_JA_OPTIONS = Array.from(new Set(Object.values(ABILITY_NAMES_JA))).filter(Boolean).sort();
+const ITEM_JA_OPTIONS = ITEMS.map((i) => i.ja).filter((n): n is string => Boolean(n) && !n.startsWith("もちものを選択")).sort();
 
 const STAT_KEYS: Array<keyof StatValues> = ["hp", "attack", "defense", "spAtk", "spDef", "speed"];
 const MAX_SLOT_REANALYZE = 3;
@@ -737,15 +749,16 @@ function PokemonResultCard({
           )}
           <div className="grid min-w-0 flex-1 gap-2">
             <div className="grid gap-2 md:grid-cols-[1.2fr,0.8fr]">
-              <label className="grid gap-1">
+              <div className="grid gap-1">
                 <span className="text-[10px] font-bold tracking-wider text-slate-400">ポケモン名</span>
-                <input
-                  type="text"
+                <SearchableSelect
                   value={pokemon.name ?? ""}
-                  onChange={(e) => onFieldChange(pokemon.slot, "name", e.target.value)}
+                  onChange={(v) => onFieldChange(pokemon.slot, "name", v)}
+                  options={POKEMON_JA_OPTIONS}
+                  placeholder="ポケモン名"
                   className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm font-black text-slate-900 outline-none focus:border-cyan-400"
                 />
-              </label>
+              </div>
               <label className="grid gap-1">
                 <span className="text-[10px] font-bold tracking-wider text-slate-400">テラスタイプ</span>
                 <input
@@ -758,44 +771,47 @@ function PokemonResultCard({
             </div>
 
             <div className="grid gap-2 md:grid-cols-3">
-              <label className="grid gap-1">
+              <div className="grid gap-1">
                 <span className="text-[10px] font-bold tracking-wider text-slate-400">特性</span>
-                <input
-                  type="text"
+                <SearchableSelect
                   value={pokemon.ability ?? ""}
-                  onChange={(e) => onFieldChange(pokemon.slot, "ability", e.target.value)}
+                  onChange={(v) => onFieldChange(pokemon.slot, "ability", v)}
+                  options={ABILITY_JA_OPTIONS}
+                  placeholder="特性"
                   className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-cyan-400"
                 />
-              </label>
-              <label className="grid gap-1">
+              </div>
+              <div className="grid gap-1">
                 <span className="text-[10px] font-bold tracking-wider text-slate-400">持ち物</span>
-                <input
-                  type="text"
+                <SearchableSelect
                   value={pokemon.item ?? ""}
-                  onChange={(e) => onFieldChange(pokemon.slot, "item", e.target.value)}
+                  onChange={(v) => onFieldChange(pokemon.slot, "item", v)}
+                  options={ITEM_JA_OPTIONS}
+                  placeholder="持ち物"
                   className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-cyan-400"
                 />
-              </label>
-              <label className="grid gap-1">
+              </div>
+              <div className="grid gap-1">
                 <span className="text-[10px] font-bold tracking-wider text-slate-400">性格</span>
-                <input
-                  type="text"
+                <SearchableSelect
                   value={pokemon.nature ?? ""}
-                  onChange={(e) => onFieldChange(pokemon.slot, "nature", e.target.value)}
+                  onChange={(v) => onFieldChange(pokemon.slot, "nature", v)}
+                  options={NATURES}
+                  placeholder="性格"
                   className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-violet-700 outline-none focus:border-violet-400"
                 />
-              </label>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-1.5 text-[11px]">
           {[0, 1, 2, 3].map((i) => (
-            <input
+            <SearchableSelect
               key={i}
-              type="text"
               value={pokemon.moves[i] ?? ""}
-              onChange={(e) => onMoveChange(pokemon.slot, i, e.target.value)}
+              onChange={(v) => onMoveChange(pokemon.slot, i, v)}
+              options={MOVE_JA_OPTIONS}
               placeholder={`技${i + 1}`}
               className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] text-slate-700 outline-none placeholder:text-slate-400 focus:border-cyan-400"
             />
@@ -817,7 +833,7 @@ function PokemonResultCard({
               ["すばやさ", "speed"],
             ] as const).map(([label, key]) => (
               <div key={key} className="flex items-center gap-1">
-                <span className="w-14 shrink-0 text-slate-500">{label}</span>
+                <span className="w-14 shrink-0 text-slate-500">{label}{key !== "hp" && <NatureIndicatorLabel nature={pokemon.nature} stat={key} />}</span>
                 <input
                   type="number"
                   value={pokemon.stats?.[key] ?? ""}
