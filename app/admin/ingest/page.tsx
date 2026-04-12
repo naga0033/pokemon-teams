@@ -172,6 +172,16 @@ export default function IngestPage() {
     [updatePokemon],
   );
 
+  const updatePokemonStat = useCallback(
+    (slot: number, group: "stats" | "evs", key: keyof StatValues, value: string) => {
+      updatePokemon(slot, (pokemon) => {
+        const current = pokemon[group] ?? { hp: 0, attack: 0, defense: 0, spAtk: 0, spDef: 0, speed: 0 };
+        return { ...pokemon, [group]: { ...current, [key]: Number(value) || 0 } };
+      });
+    },
+    [updatePokemon],
+  );
+
   /** 1 枚の画像を Claude Haiku に投げて結果を返す。失敗時は null */
   const callAnalyzeApi = useCallback(
     async (
@@ -641,6 +651,7 @@ export default function IngestPage() {
                 pokemon={p}
                 onFieldChange={updatePokemonField}
                 onMoveChange={updatePokemonMove}
+                onStatChange={updatePokemonStat}
               />
             ))}
           </div>
@@ -669,6 +680,7 @@ function PokemonResultCard({
   pokemon,
   onFieldChange,
   onMoveChange,
+  onStatChange,
 }: {
   pokemon: ParsedPokemon;
   onFieldChange: (
@@ -677,6 +689,7 @@ function PokemonResultCard({
     value: string,
   ) => void;
   onMoveChange: (slot: number, moveIndex: number, value: string) => void;
+  onStatChange: (slot: number, group: "stats" | "evs", key: keyof StatValues, value: string) => void;
 }) {
   // サーバー側で名寄せ済みの slug を優先、なければクライアント側で試行
   const slug = pokemon.slug ?? (pokemon.name ? getEnSlug(pokemon.name) : null);
@@ -789,36 +802,40 @@ function PokemonResultCard({
           ))}
         </div>
 
-        {/* ステータス & 努力値 (ステータス画面が読めた場合のみ表示) */}
-        {pokemon.stats && (
-          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-            <p className="mb-1.5 text-[10px] font-bold tracking-wider text-slate-500">
-              ステータス / 努力値
-            </p>
-            <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-[11px]">
-              {([
-                ["HP", "hp"],
-                ["こうげき", "attack"],
-                ["ぼうぎょ", "defense"],
-                ["とくこう", "spAtk"],
-                ["とくぼう", "spDef"],
-                ["すばやさ", "speed"],
-              ] as const).map(([label, key]) => (
-                <div key={key} className="flex items-center justify-between">
-                  <span className="text-slate-500">{label}</span>
-                  <span className="font-mono font-bold text-slate-900">
-                    {pokemon.stats?.[key] ?? "?"}
-                    {pokemon.evs && (
-                      <span className={`ml-1 text-[10px] ${(pokemon.evs[key] ?? 0) > 0 ? "text-amber-600 font-bold" : "text-slate-400"}`}>
-                        ({pokemon.evs[key] ?? 0})
-                      </span>
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
+        {/* ステータス & 努力値 */}
+        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+          <p className="mb-1.5 text-[10px] font-bold tracking-wider text-slate-500">
+            実数値 / 努力値
+          </p>
+          <div className="grid grid-cols-3 gap-x-3 gap-y-1.5 text-[11px]">
+            {([
+              ["HP", "hp"],
+              ["こうげき", "attack"],
+              ["ぼうぎょ", "defense"],
+              ["とくこう", "spAtk"],
+              ["とくぼう", "spDef"],
+              ["すばやさ", "speed"],
+            ] as const).map(([label, key]) => (
+              <div key={key} className="flex items-center gap-1">
+                <span className="w-14 shrink-0 text-slate-500">{label}</span>
+                <input
+                  type="number"
+                  value={pokemon.stats?.[key] ?? ""}
+                  onChange={(e) => onStatChange(pokemon.slot, "stats", key, e.target.value)}
+                  placeholder="実数値"
+                  className="w-14 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-center font-mono text-[11px] font-bold text-slate-900 outline-none focus:border-cyan-400"
+                />
+                <input
+                  type="number"
+                  value={pokemon.evs?.[key] ?? ""}
+                  onChange={(e) => onStatChange(pokemon.slot, "evs", key, e.target.value)}
+                  placeholder="努力値"
+                  className={`w-12 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-center font-mono text-[10px] outline-none focus:border-amber-400 ${(pokemon.evs?.[key] ?? 0) > 0 ? "font-bold text-amber-600" : "text-slate-400"}`}
+                />
+              </div>
+            ))}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
