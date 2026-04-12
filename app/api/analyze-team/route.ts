@@ -128,7 +128,7 @@ export async function POST(req: Request) {
   let rawText = "";
   try {
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 4096,
       system: isSingleSlot ? getSingleSlotPrompt(slot) : FULL_TEAM_PROMPT,
       messages: [
@@ -155,11 +155,16 @@ export async function POST(req: Request) {
             },
           ],
         },
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "{" }],
+        },
       ],
     });
 
     const block = response.content.find((b) => b.type === "text");
-    rawText = block && block.type === "text" ? block.text : "";
+    const continuation = block && block.type === "text" ? block.text : "";
+    rawText = `{${continuation}`;
   } catch (err) {
     console.error("[analyze-team] Claude API error:", err);
     return NextResponse.json(
