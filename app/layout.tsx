@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { cookies } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import { Noto_Sans_JP, Orbitron } from "next/font/google";
-import { ADMIN_COOKIE_NAME, isValidAdminToken } from "@/lib/admin-auth";
+// admin-auth は admin layout で使用
 import "./globals.css";
 
 const GA_ID = "G-Y2608K2MZP";
@@ -28,8 +27,6 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies();
-  const isAdmin = isValidAdminToken(cookieStore.get(ADMIN_COOKIE_NAME)?.value ?? null);
 
   return (
     <html lang="ja">
@@ -57,19 +54,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <span className="ml-1 text-cyan-600">構築コレクション</span>
               </span>
             </Link>
-            {isAdmin && (
-              <nav className="flex items-center gap-3 text-sm">
-                <Link href="/admin" className="font-bold text-slate-600 transition hover:text-cyan-600">
-                  管理
-                </Link>
-                <Link href="/admin/ingest" className="font-bold text-slate-600 transition hover:text-cyan-600">
-                  取り込み
-                </Link>
-                <Link href="/admin/teams" className="font-bold text-slate-600 transition hover:text-cyan-600">
-                  構築修正
-                </Link>
-              </nav>
-            )}
           </div>
         </header>
 
