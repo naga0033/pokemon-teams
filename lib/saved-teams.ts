@@ -37,7 +37,7 @@ export async function loadSavedTeams(): Promise<Team[]> {
   const { data, error } = await supabase
     .from("teams")
     .select("*")
-    .order("registered_at", { ascending: false });
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error("[loadSavedTeams]", error.message);
