@@ -1,0 +1,205 @@
+[
+  {
+    "id": "team-gvil82tj-vft9w5",
+    "title": "ベルモット の構築",
+    "author": "ベルモット",
+    "format": "single",
+    "teamCode": "7NHKM4R3BQ",
+    "sourceUrl": "https://x.com/poketool2/status/2043141439769731120",
+    "registeredAt": "2026-04-12",
+    "pokemons": [
+      {
+        "name": "マスカーニャ",
+        "slug": "meowscarada",
+        "ability": "へんげんしぎ",
+        "item": "きあいのタスキ",
+        "teraType": "くさ",
+        "nature": "ひかえめ",
+        "moves": [
+          "トリックフラワー",
+          "とんぼがえり",
+          "トリプルアクセル",
+          "ちょうはつ"
+        ],
+        "stats": {
+          "hp": 151,
+          "attack": 162,
+          "defense": 92,
+          "spAtk": 90,
+          "spDef": 90,
+          "speed": 192
+        },
+        "evs": {
+          "hp": 0,
+          "attack": 32,
+          "defense": 2,
+          "spAtk": 0,
+          "spDef": 0,
+          "speed": 32
+        },
+        "gender": "female",
+        "slot": 1
+      },
+      {
+        "name": "マフォクシー",
+        "slug": "delphox",
+        "ability": "もうか",
+        "item": "マフォクシーナイト",
+        "teraType": "ほのお",
+        "nature": "ひかえめ",
+        "moves": [
+          "かえんほうしゃ",
+          "サイコキネシス",
+          "みがわり",
+          "アンコール"
+        ],
+        "stats": {
+          "hp": 150,
+          "attack": 80,
+          "defense": 92,
+          "spAtk": 166,
+          "spDef": 122,
+          "speed": 171
+        },
+        "evs": {
+          "hp": 0,
+          "attack": 0,
+          "defense": 0,
+          "spAtk": 32,
+          "spDef": 2,
+          "speed": 32
+        },
+        "gender": "male",
+        "slot": 2
+      },
+      {
+        "name": "アシレーヌ",
+        "slug": "primarina",
+        "ability": "げきりゅう",
+        "item": "たべのこし",
+        "teraType": "みず",
+        "nature": "おだやか",
+        "moves": [
+          "ムーンフォース",
+          "うたかたのアリア",
+          "シャドーボール",
+          "アクアジェット"
+        ],
+        "stats": {
+          "hp": 187,
+          "attack": 84,
+          "defense": 138,
+          "spAtk": 146,
+          "spDef": 137,
+          "speed": 80
+        },
+        "evs": {
+          "hp": 32,
+          "attack": 0,
+          "defense": 32,
+          "spAtk": 0,
+          "spDef": 1,
+          "speed": 0
+        },
+        "gender": "female",
+        "slot": 3
+      },
+      {
+        "name": "ゲンガー",
+        "slug": "gengar",
+        "ability": "のろわれボディ",
+        "item": "ゲンガナイト",
+        "teraType": "ゴースト",
+        "nature": "いじっぱり",
+        "moves": [
+          "１０まんボルト",
+          "きあいだま",
+          "シャドーボール",
+          "ゲンガナイト"
+        ],
+        "stats": {
+          "hp": 175,
+          "attack": 205,
+          "defense": 157,
+          "spAtk": 72,
+          "spDef": 105,
+          "speed": 87
+        },
+        "evs": {
+          "hp": 0,
+          "attack": 32,
+          "defense": 17,
+          "spAtk": 0,
+          "spDef": 0,
+          "speed": 17
+        },
+        "gender": "male",
+        "slot": 4
+      },
+      {
+        "name": "ドドゲザン",
+        "slug": "kingambit",
+        "ability": "そうだいしょう",
+        "item": "くろいメガネ",
+        "teraType": "あく",
+        "nature": "ひかえめ",
+        "moves": [
+          "ドゲザン",
+          "アイアンヘッド",
+          "つるぎのまい",
+          "ふいうち"
+        ],
+        "stats": {
+          "hp": 137,
+          "attack": 76,
+          "defense": 80,
+          "spAtk": 182,
+          "spDef": 95,
+          "speed": 178
+        },
+        "evs": {
+          "hp": 2,
+          "attack": 0,
+          "defense": 0,
+          "spAtk": 32,
+          "spDef": 0,
+          "speed": 32
+        },
+        "gender": "female",
+        "slot": 5
+      },
+      {
+        "name": "ガブリアス",
+        "slug": "garchomp",
+        "ability": "さめはだ",
+        "item": "オボンのみ",
+        "teraType": "じめん",
+        "nature": "やんちゃ",
+        "moves": [
+          "げきりん",
+          "じしん",
+          "かみなりのキバ",
+          "つるぎのまい"
+        ],
+        "stats": {
+          "hp": 215,
+          "attack": 152,
+          "defense": 161,
+          "spAtk": 90,
+          "spDef": 105,
+          "speed": 122
+        },
+        "evs": {
+          "hp": 32,
+          "attack": 2,
+          "defense": 32,
+          "spAtk": 0,
+          "spDef": 0,
+          "speed": 0
+        },
+        "gender": "male",
+        "slot": 6
+      }
+    ]
+  }
+]
