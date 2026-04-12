@@ -162,16 +162,11 @@ export async function POST(req: Request) {
             },
           ],
         },
-        {
-          role: "assistant",
-          content: [{ type: "text", text: "{" }],
-        },
       ],
     });
 
     const block = response.content.find((b) => b.type === "text");
-    const continuation = block && block.type === "text" ? block.text : "";
-    rawText = `{${continuation}`;
+    rawText = block && block.type === "text" ? block.text : "";
   } catch (err) {
     console.error("[analyze-team] Claude API error:", err);
     return NextResponse.json(
