@@ -506,7 +506,7 @@ export const EN_TO_JA: Record<string, string> = {
   kleavor: "バサギリ",
   ursaluna: "ガチグマ",
   basculegion: "イダイトウ",
-  sneasler: "ニューラ（ヒスイ）",
+  sneasler: "オオニューラ",
   overqwil: "ハリーマン",
   enamorus: "ラブトロス",
 
