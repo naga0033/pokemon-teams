@@ -630,7 +630,6 @@ export default function IngestPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              {/* 形式選択 */}
               <select
                 value={saveFormat}
                 onChange={(e) => setSaveFormat(e.target.value as "single" | "double")}
@@ -639,43 +638,6 @@ export default function IngestPage() {
                 <option value="single">シングル</option>
                 <option value="double">ダブル</option>
               </select>
-              {/* 登録ボタン */}
-              <button
-                type="button"
-                disabled={stage === "saving" || !!saveSuccess}
-                onClick={async () => {
-                  if (!parsed || !tweetData) return;
-                  setStage("saving");
-                  setSaveSuccess(null);
-                  try {
-                    const res = await fetch("/api/teams/save", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        trainerName: parsed.trainerName,
-                        teamCode: parsed.teamCode,
-                        tweetUrl: tweetData.tweetUrl,
-                        format: saveFormat,
-                        pokemons: parsed.pokemons,
-                      }),
-                    });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data?.error ?? "保存失敗");
-                    setSaveSuccess(`✅ 登録しました！ (ID: ${data.id})`);
-                  } catch (err) {
-                    setError(err instanceof Error ? err.message : "保存に失敗しました");
-                  } finally {
-                    setStage("idle");
-                  }
-                }}
-                className={
-                  saveSuccess
-                    ? "rounded-full bg-emerald-100 px-5 py-2 text-xs font-bold text-emerald-700"
-                    : "btn-neon rounded-full px-5 py-2 text-xs disabled:opacity-60"
-                }
-              >
-                {stage === "saving" ? "保存中…" : saveSuccess ? saveSuccess : "🚀 登録して公開"}
-              </button>
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -688,6 +650,46 @@ export default function IngestPage() {
                 onStatChange={updatePokemonStat}
               />
             ))}
+          </div>
+
+          {/* 登録ボタン（一番下） */}
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              disabled={stage === "saving" || !!saveSuccess}
+              onClick={async () => {
+                if (!parsed || !tweetData) return;
+                setStage("saving");
+                setSaveSuccess(null);
+                try {
+                  const res = await fetch("/api/teams/save", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      trainerName: parsed.trainerName,
+                      teamCode: parsed.teamCode,
+                      tweetUrl: tweetData.tweetUrl,
+                      format: saveFormat,
+                      pokemons: parsed.pokemons,
+                    }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data?.error ?? "保存失敗");
+                  setSaveSuccess(`✅ 登録しました！ (ID: ${data.id})`);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : "保存に失敗しました");
+                } finally {
+                  setStage("idle");
+                }
+              }}
+              className={
+                saveSuccess
+                  ? "rounded-full bg-emerald-100 px-8 py-3 text-sm font-bold text-emerald-700"
+                  : "btn-neon rounded-full px-8 py-3 text-sm disabled:opacity-60"
+              }
+            >
+              {stage === "saving" ? "保存中…" : saveSuccess ? saveSuccess : "🚀 登録して公開"}
+            </button>
           </div>
         </section>
       )}
