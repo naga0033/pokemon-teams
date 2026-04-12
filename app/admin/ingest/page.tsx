@@ -183,10 +183,13 @@ export default function IngestPage() {
       field: "name" | "ability" | "item" | "teraType" | "nature",
       value: string,
     ) => {
-      updatePokemon(slot, (pokemon) => ({
-        ...pokemon,
-        [field]: value.trim() ? value : null,
-      }));
+      updatePokemon(slot, (pokemon) => {
+        const updated = { ...pokemon, [field]: value.trim() ? value : null };
+        if (field === "name") {
+          updated.slug = value.trim() ? getEnSlug(value.trim()) ?? null : null;
+        }
+        return updated;
+      });
     },
     [updatePokemon],
   );
