@@ -7,7 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { cropTeamImage, dataUrlToBlob } from "@/lib/image-crop";
 import { getHomeSpriteUrl } from "@/lib/pokemon-sprite";
-import { getEnSlug, EN_TO_JA } from "@/lib/pokemon-names";
+import { getEnSlug, EN_TO_JA, resolvePokemonJaName } from "@/lib/pokemon-names";
 import { MOVE_NAMES_JA } from "@/lib/move-names";
 import { ABILITY_NAMES_JA } from "@/lib/ability-names";
 import { ITEMS } from "@/lib/items";
@@ -32,6 +32,17 @@ type StatValues = {
   speed: number;
 };
 
+// 信頼度レベル: exact=完全一致, fuzzy=ファジーマッチ, unmatched=辞書に該当なし
+type Confidence = "exact" | "fuzzy" | "unmatched";
+
+type FieldConfidence = {
+  name: Confidence;
+  ability: Confidence;
+  item: Confidence;
+  moves: Confidence[];
+  teraType: Confidence;
+};
+
 type ParsedPokemon = {
   slot: number;
   name: string | null;
@@ -47,6 +58,8 @@ type ParsedPokemon = {
   stats?: StatValues;
   /** 努力値 (ステータス画面から取得した場合) */
   evs?: StatValues;
+  /** 各フィールドのマッチ信頼度 */
+  confidence?: FieldConfidence;
 };
 
 type ParsedTeam = {
@@ -184,9 +197,14 @@ export default function IngestPage() {
       value: string,
     ) => {
       updatePokemon(slot, (pokemon) => {
-        const updated = { ...pokemon, [field]: value.trim() ? value : null };
+        let nextValue: string | null = value.trim() ? value : null;
+        // 名前の場合はエイリアスを適用（例: フラエッテ → フラエッテ(えいえん)）
+        if (field === "name" && nextValue) {
+          nextValue = resolvePokemonJaName(nextValue) ?? nextValue;
+        }
+        const updated = { ...pokemon, [field]: nextValue };
         if (field === "name") {
-          updated.slug = value.trim() ? getEnSlug(value.trim()) ?? null : null;
+          updated.slug = nextValue ? getEnSlug(nextValue) ?? null : null;
         }
         return updated;
       });
@@ -618,9 +636,14 @@ export default function IngestPage() {
               <h2 className="font-display text-lg font-black text-slate-900">
                 解析結果
                 <span className="ml-2 text-sm font-normal text-slate-400">
-                  (完全一致 {filledCount}/6 体)
+                  ({filledCount}/6 体)
                 </span>
               </h2>
+              <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-500">
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />完全一致</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-amber-400" />ファジーマッチ(要確認)</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-rose-400" />該当なし(要修正)</span>
+              </div>
               {(parsed.trainerName || parsed.teamCode) && (
                 <p className="mt-0.5 text-xs text-slate-500">
                   {parsed.trainerName && `プレイヤー: ${parsed.trainerName}`}
@@ -628,16 +651,6 @@ export default function IngestPage() {
                   {parsed.teamCode && `チームID: ${parsed.teamCode}`}
                 </p>
               )}
-            </div>
-            <div className="flex items-center gap-2">
-              <select
-                value={saveFormat}
-                onChange={(e) => setSaveFormat(e.target.value as "single" | "double")}
-                className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600"
-              >
-                <option value="single">シングル</option>
-                <option value="double">ダブル</option>
-              </select>
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -652,8 +665,25 @@ export default function IngestPage() {
             ))}
           </div>
 
-          {/* 登録ボタン（一番下） */}
-          <div className="mt-6 flex items-center justify-center gap-3">
+          {/* 形式選択 + 登録ボタン（一番下） */}
+          <div className="mt-6 flex flex-col items-center gap-3">
+            {/* シングル/ダブル トグル */}
+            <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+              {(["single", "double"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setSaveFormat(f)}
+                  className={
+                    saveFormat === f
+                      ? "rounded-full bg-cyan-500 px-5 py-1.5 text-xs font-bold text-white shadow"
+                      : "rounded-full px-5 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-700"
+                  }
+                >
+                  {f === "single" ? "シングル" : "ダブル"}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               disabled={stage === "saving" || !!saveSuccess}
@@ -712,6 +742,24 @@ export default function IngestPage() {
   );
 }
 
+// 信頼度に応じたボーダー色クラスを返す
+function confidenceBorderClass(level?: Confidence): string {
+  if (!level) return "border-slate-200";
+  switch (level) {
+    case "exact": return "border-emerald-400";
+    case "fuzzy": return "border-amber-400";
+    case "unmatched": return "border-rose-400";
+  }
+}
+
+// 信頼度ドットインジケータ
+function ConfidenceDot({ level }: { level?: Confidence }) {
+  if (!level || level === "exact") return null;
+  const color = level === "fuzzy" ? "bg-amber-400" : "bg-rose-400";
+  const title = level === "fuzzy" ? "ファジーマッチ（要確認）" : "辞書に該当なし（要修正）";
+  return <span className={`inline-block ml-1 h-1.5 w-1.5 rounded-full ${color}`} title={title} />;
+}
+
 function PokemonResultCard({
   pokemon,
   onFieldChange,
@@ -729,6 +777,7 @@ function PokemonResultCard({
 }) {
   // サーバー側で名寄せ済みの slug を優先、なければクライアント側で試行
   const slug = pokemon.slug ?? (pokemon.name ? getEnSlug(pokemon.name) : null);
+  const conf = pokemon.confidence;
   const fieldsFilled =
     (pokemon.name ? 1 : 0) +
     (pokemon.ability ? 1 : 0) +
@@ -736,22 +785,35 @@ function PokemonResultCard({
     Math.min(pokemon.moves.length, 4);
   const isComplete = fieldsFilled >= 7;
 
+  // 信頼度サマリー: 要確認フィールド数を計算
+  const needsReviewCount = conf ? (
+    [conf.name, conf.ability, conf.item, conf.teraType, ...conf.moves]
+      .filter((c) => c === "fuzzy" || c === "unmatched").length
+  ) : 0;
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className={`rounded-2xl border bg-white shadow-sm ${needsReviewCount > 0 ? "border-amber-300" : "border-slate-200"}`}>
       <div className="p-4">
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-bold tracking-wider text-slate-400">
             SLOT {pokemon.slot}
           </span>
-          <span
-            className={
-              isComplete
-                ? "rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700"
-                : "rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700"
-            }
-          >
-            {fieldsFilled}/7 項目
-          </span>
+          <div className="flex items-center gap-1.5">
+            {needsReviewCount > 0 && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                {needsReviewCount}件要確認
+              </span>
+            )}
+            <span
+              className={
+                isComplete && needsReviewCount === 0
+                  ? "rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700"
+                  : "rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500"
+              }
+            >
+              {fieldsFilled}/7 項目
+            </span>
+          </div>
         </div>
 
         <div className="mt-3 flex items-start gap-3">
@@ -774,13 +836,13 @@ function PokemonResultCard({
           <div className="grid min-w-0 flex-1 gap-2">
             <div className="grid gap-2 md:grid-cols-[1.2fr,0.8fr]">
               <div className="grid gap-1">
-                <span className="text-[10px] font-bold tracking-wider text-slate-400">ポケモン名</span>
+                <span className="text-[10px] font-bold tracking-wider text-slate-400">ポケモン名<ConfidenceDot level={conf?.name} /></span>
                 <SearchableSelect
                   value={pokemon.name ?? ""}
                   onChange={(v) => onFieldChange(pokemon.slot, "name", v)}
                   options={POKEMON_JA_OPTIONS}
                   placeholder="ポケモン名"
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm font-black text-slate-900 outline-none focus:border-cyan-400"
+                  className={`rounded-lg border bg-white px-2.5 py-2 text-sm font-black text-slate-900 outline-none focus:border-cyan-400 ${confidenceBorderClass(conf?.name)}`}
                 />
               </div>
               <div className="grid gap-1">
@@ -794,23 +856,23 @@ function PokemonResultCard({
 
             <div className="grid gap-2 md:grid-cols-2">
               <div className="grid gap-1">
-                <span className="text-[10px] font-bold tracking-wider text-slate-400">特性</span>
+                <span className="text-[10px] font-bold tracking-wider text-slate-400">特性<ConfidenceDot level={conf?.ability} /></span>
                 <SearchableSelect
                   value={pokemon.ability ?? ""}
                   onChange={(v) => onFieldChange(pokemon.slot, "ability", v)}
                   options={ABILITY_JA_OPTIONS}
                   placeholder="特性"
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-cyan-400"
+                  className={`rounded-lg border bg-white px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-cyan-400 ${confidenceBorderClass(conf?.ability)}`}
                 />
               </div>
               <div className="grid gap-1">
-                <span className="text-[10px] font-bold tracking-wider text-slate-400">持ち物</span>
+                <span className="text-[10px] font-bold tracking-wider text-slate-400">持ち物<ConfidenceDot level={conf?.item} /></span>
                 <SearchableSelect
                   value={pokemon.item ?? ""}
                   onChange={(v) => onFieldChange(pokemon.slot, "item", v)}
                   options={ITEM_JA_OPTIONS}
                   placeholder="持ち物"
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-cyan-400"
+                  className={`rounded-lg border bg-white px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-cyan-400 ${confidenceBorderClass(conf?.item)}`}
                 />
               </div>
             </div>
@@ -825,7 +887,7 @@ function PokemonResultCard({
               onChange={(v) => onMoveChange(pokemon.slot, i, v)}
               options={MOVE_JA_OPTIONS}
               placeholder={`技${i + 1}`}
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] text-slate-700 outline-none placeholder:text-slate-400 focus:border-cyan-400"
+              className={`rounded-lg border bg-white px-2.5 py-1.5 text-[11px] text-slate-700 outline-none placeholder:text-slate-400 focus:border-cyan-400 ${confidenceBorderClass(conf?.moves?.[i])}`}
             />
           ))}
         </div>

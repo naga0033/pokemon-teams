@@ -647,6 +647,8 @@ const POKEMON_ALIAS: Record<string, string> = {
   "水オーガポン": "オーガポン(水)",
   "炎オーガポン": "オーガポン(炎)",
   "岩オーガポン": "オーガポン(岩)",
+  // フラエッテは競技的には「えいえんのすがた」しか使われないので常にこれに寄せる
+  "フラエッテ": "フラエッテ(えいえん)",
 };
 
 function normalizePokemonAlias(jaName: string): string {

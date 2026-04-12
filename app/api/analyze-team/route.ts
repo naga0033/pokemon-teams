@@ -135,7 +135,7 @@ export async function POST(req: Request) {
   let rawText = "";
   try {
     const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6-20250514",
       max_tokens: 4096,
       system: isSingleSlot ? getSingleSlotPrompt(slot) : FULL_TEAM_PROMPT,
       messages: [
@@ -214,11 +214,23 @@ export async function POST(req: Request) {
   });
 }
 
+// 信頼度レベル: exact=完全一致, fuzzy=ファジーマッチ, unmatched=辞書に該当なし
+type Confidence = "exact" | "fuzzy" | "unmatched";
+
+type FieldConfidence = {
+  name: Confidence;
+  ability: Confidence;
+  item: Confidence;
+  moves: Confidence[];   // 技ごとに信頼度
+  teraType: Confidence;
+};
+
 /**
  * Claude が返してきた構築データを辞書データで名寄せする。
  * - ポケモン名: resolvePokemonJaName で正式名に変換 (ひら/カナ/前方一致対応)
  * - 特性/持ち物/技: findBestJaMatch で距離1までのタイポを吸収
  * - slug: 名寄せ後のポケモン名から取得
+ * - confidence: 各フィールドのマッチ信頼度を付与
  */
 function normalizeAnalyzedTeam(input: unknown): unknown {
   if (!input || typeof input !== "object") return input;
@@ -251,6 +263,14 @@ function normalizeAnalyzedPokemon(input: unknown, slot: number): unknown {
 function normalizePokemonRecord(input: unknown): Record<string, unknown> {
   const p = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
   const out: Record<string, unknown> = { ...p };
+  const confidence: FieldConfidence = {
+    name: "unmatched",
+    ability: "unmatched",
+    item: "unmatched",
+    moves: [],
+    teraType: "unmatched",
+  };
+
   const rawAbility = typeof p.ability === "string" ? p.ability.trim() : "";
   const rawItem = typeof p.item === "string" ? p.item.trim() : "";
   const rawMoves = Array.isArray(p.moves)
@@ -258,76 +278,98 @@ function normalizePokemonRecord(input: unknown): Record<string, unknown> {
     : [];
   const rawCandidates = [rawAbility, rawItem, ...rawMoves].filter(Boolean);
 
+  // ポケモン名の名寄せ + 信頼度
   if (typeof p.name === "string" && p.name.trim()) {
-    let resolved = resolvePokemonJaName(p.name);
-    if (!resolved) {
-      resolved = findBestJaMatch(p.name, POKEMON_JA_LIST, { maxDistance: 2 });
-    }
-    if (resolved) {
-      out.name = resolved;
-      out.slug = getEnSlug(resolved);
+    const exactResolve = resolvePokemonJaName(p.name);
+    if (exactResolve) {
+      out.name = exactResolve;
+      out.slug = getEnSlug(exactResolve);
+      confidence.name = "exact";
     } else {
-      out.slug = null;
+      const fuzzy = findBestJaMatch(p.name, POKEMON_JA_LIST, { maxDistance: 2 });
+      if (fuzzy) {
+        out.name = fuzzy;
+        out.slug = getEnSlug(fuzzy);
+        confidence.name = "fuzzy";
+      } else {
+        out.slug = null;
+        confidence.name = "unmatched";
+      }
     }
   }
 
-  // Haiku がフィールドを混同するため、全候補を集めて正しいカテゴリに振り分ける
+  // テラスタイプの信頼度
+  const TERA_TYPES = [
+    "ノーマル", "ほのお", "みず", "でんき", "くさ", "こおり",
+    "かくとう", "どく", "じめん", "ひこう", "エスパー", "むし",
+    "いわ", "ゴースト", "ドラゴン", "あく", "はがね", "フェアリー", "ステラ",
+  ];
+  if (typeof p.teraType === "string" && p.teraType.trim()) {
+    confidence.teraType = TERA_TYPES.includes(p.teraType.trim()) ? "exact" : "unmatched";
+  }
+
+  // フィールドを混同するため、全候補を集めて正しいカテゴリに振り分ける
   const allValues = rawCandidates;
   const used = new Set<string>();
 
   // 1. 特性を探す（全候補から）
-  const resolvedAbility = pickBestCategorizedValue(allValues, ABILITY_JA_LIST, 1);
-  out.ability = resolvedAbility ?? null;
-  if (resolvedAbility) used.add(resolvedAbility);
+  const abilityResult = pickBestCategorizedValueWithConfidence(allValues, ABILITY_JA_LIST, 1);
+  out.ability = abilityResult?.value ?? null;
+  confidence.ability = abilityResult?.confidence ?? "unmatched";
+  if (abilityResult?.value) used.add(abilityResult.value);
 
   // 2. 持ち物を探す（特性で使った値を除外）
   const itemCandidates = allValues.filter((v) => !used.has(v));
-  const resolvedItem = pickBestCategorizedValue(itemCandidates, ITEM_JA_LIST, 1);
-  out.item = resolvedItem ?? null;
-  if (resolvedItem) used.add(resolvedItem);
+  const itemResult = pickBestCategorizedValueWithConfidence(itemCandidates, ITEM_JA_LIST, 1);
+  out.item = itemResult?.value ?? null;
+  confidence.item = itemResult?.confidence ?? "unmatched";
+  if (itemResult?.value) used.add(itemResult.value);
 
   // 3. 技を探す（特性・持ち物で使った値を除外）
-  const resolvedMoves = pickCategorizedMoves(
-    allValues,
-    used,
-    4,
-  );
-  out.moves = resolvedMoves;
+  const movesResult = pickCategorizedMovesWithConfidence(allValues, used, 4);
+  out.moves = movesResult.map((r) => r.value);
+  confidence.moves = movesResult.map((r) => r.confidence);
 
+  out.confidence = confidence;
   return out;
 }
 
-function pickBestCategorizedValue(
+type MatchResult = { value: string; confidence: Confidence };
+
+function pickBestCategorizedValueWithConfidence(
   candidates: string[],
   dictionary: string[],
   maxDistance: number,
-): string | null {
+): MatchResult | null {
   for (const candidate of candidates) {
     if (!candidate) continue;
-    if (dictionary.includes(candidate)) return candidate;
+    if (dictionary.includes(candidate)) return { value: candidate, confidence: "exact" };
     const fuzzy = findBestJaMatch(candidate, dictionary, { maxDistance });
-    if (fuzzy) return fuzzy;
+    if (fuzzy) return { value: fuzzy, confidence: "fuzzy" };
   }
   return null;
 }
 
-function pickCategorizedMoves(
+function pickCategorizedMovesWithConfidence(
   candidates: string[],
   reserved: Set<string>,
   limit: number,
-): string[] {
-  const moves: string[] = [];
+): MatchResult[] {
+  const moves: MatchResult[] = [];
 
   for (const candidate of candidates) {
     if (!candidate) continue;
-    const resolved =
-      MOVE_JA_LIST.includes(candidate)
-        ? candidate
-        : findBestJaMatch(candidate, MOVE_JA_LIST, { maxDistance: 2 });
-    if (!resolved) continue;
-    if (reserved.has(resolved)) continue;
-    if (moves.includes(resolved)) continue;
-    moves.push(resolved);
+    if (MOVE_JA_LIST.includes(candidate)) {
+      if (reserved.has(candidate)) continue;
+      if (moves.some((m) => m.value === candidate)) continue;
+      moves.push({ value: candidate, confidence: "exact" });
+    } else {
+      const fuzzy = findBestJaMatch(candidate, MOVE_JA_LIST, { maxDistance: 2 });
+      if (!fuzzy) continue;
+      if (reserved.has(fuzzy)) continue;
+      if (moves.some((m) => m.value === fuzzy)) continue;
+      moves.push({ value: fuzzy, confidence: "fuzzy" });
+    }
     if (moves.length >= limit) break;
   }
 
