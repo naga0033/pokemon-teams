@@ -210,10 +210,16 @@ export default function IngestPage() {
     [],
   );
 
-  /** 解析結果のスコア: 名前が読めてるポケモンの数 */
+  /** 解析結果のスコア: 特性・持ち物・技が読めているほど高スコア（能力画面を優先） */
   const scoreResult = (result: ParsedTeam | null): number => {
     if (!result) return -1;
-    return result.pokemons.filter((p) => p.name && p.name.trim().length > 0).length;
+    return result.pokemons.reduce((score, p) => {
+      return score +
+        (p.name ? 1 : 0) +
+        (p.ability ? 2 : 0) +
+        (p.item ? 2 : 0) +
+        Math.min(p.moves.filter((m) => m && m.trim()).length, 4) * 2;
+    }, 0);
   };
 
   const refineIncompleteSlots = useCallback(
@@ -310,7 +316,8 @@ export default function IngestPage() {
         if (score > best.score) {
           best = { index: i, parsed: parsedTeam, rawText: result.rawText, score };
         }
-        if (score >= 6) break;
+        // 6匹×(名前1+特性2+持ち物2+技4×2)=66が満点。30以上なら十分
+        if (score >= 30) break;
       }
 
       if (best.score <= 0) {
