@@ -19,7 +19,7 @@ const displayFont = Orbitron({
 });
 
 export const metadata: Metadata = {
-  title: "ポケチャン トレーナーデッキ",
+  title: "ポケモンチャンピオンズ 構築コレクション",
   description:
     "ポケモンチャンピオンズの構築をトレーナーカード形式でコレクション。シングル/ダブル切り替えとポケモン名での絞り込みに対応。",
 };
