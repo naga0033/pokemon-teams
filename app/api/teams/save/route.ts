@@ -49,7 +49,7 @@ export async function POST(req: Request) {
 
   const team: Team = {
     id,
-    title: body.trainerName ? `${body.trainerName} の構築` : "名前未設定の構築",
+    title: body.trainerName ? `${body.trainerName}さん の構築` : "名前未設定の構築",
     author: body.trainerName ?? "不明",
     format: body.format ?? "single",
     teamCode: body.teamCode ?? undefined,
