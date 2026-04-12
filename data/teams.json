@@ -1,5 +1,204 @@
 [
   {
+    "id": "team-34r33hnb-vm4vwa",
+    "title": "ベルモット の構築",
+    "author": "ベルモット",
+    "format": "double",
+    "teamCode": "3MPW21B3SB",
+    "sourceUrl": "https://x.com/poketool2/status/2043141543360622846",
+    "registeredAt": "2026-04-12",
+    "pokemons": [
+      {
+        "name": "マフォクシー",
+        "slug": "delphox",
+        "ability": "ほうし",
+        "item": "マフォクシーナイト",
+        "teraType": "ほのお",
+        "nature": "ひかえめ",
+        "moves": [
+          "サイコキネシス",
+          "みがわり",
+          "アンコール"
+        ],
+        "stats": {
+          "hp": 150,
+          "attack": 80,
+          "defense": 92,
+          "spAtk": 166,
+          "spDef": 122,
+          "speed": 171
+        },
+        "evs": {
+          "hp": 0,
+          "attack": 0,
+          "defense": 0,
+          "spAtk": 32,
+          "spDef": 2,
+          "speed": 32
+        },
+        "gender": "male",
+        "slot": 1
+      },
+      {
+        "name": "ドドゲザン",
+        "slug": "kingambit",
+        "ability": "まけんき",
+        "item": "ヨプのみ",
+        "teraType": "どく",
+        "nature": "いじっぱり",
+        "moves": [
+          "ふいうち",
+          "ドゲザン",
+          "けたぐり"
+        ],
+        "stats": {
+          "hp": 201,
+          "attack": 200,
+          "defense": 115,
+          "spAtk": 105,
+          "spDef": 138,
+          "speed": 0
+        },
+        "evs": {
+          "hp": 18,
+          "attack": 32,
+          "defense": 0,
+          "spAtk": 0,
+          "spDef": 16,
+          "speed": 0
+        },
+        "gender": "female",
+        "slot": 2
+      },
+      {
+        "name": "ニューラ",
+        "slug": "sneasel",
+        "ability": "かるわざ",
+        "item": "しろいハーブ",
+        "teraType": "あく",
+        "nature": "ゆうかん",
+        "moves": [
+          "まもる",
+          "インファイト",
+          "フェイタルクロー"
+        ],
+        "stats": {
+          "hp": 207,
+          "attack": 187,
+          "defense": 156,
+          "spAtk": 106,
+          "spDef": 72,
+          "speed": 0
+        },
+        "evs": {
+          "hp": 32,
+          "attack": 15,
+          "defense": 16,
+          "spAtk": 1,
+          "spDef": 2,
+          "speed": 0
+        },
+        "gender": "unknown",
+        "slot": 3
+      },
+      {
+        "name": "ガブリアス",
+        "slug": "garchomp",
+        "ability": "さめはだ",
+        "item": "ラムのみ",
+        "teraType": "みず",
+        "nature": "わんぱく",
+        "moves": [
+          "ドラゴンクロー",
+          "いわなだれ",
+          "じしん"
+        ],
+        "stats": {
+          "hp": 202,
+          "attack": 135,
+          "defense": 111,
+          "spAtk": 156,
+          "spDef": 80,
+          "speed": 0
+        },
+        "evs": {
+          "hp": 32,
+          "attack": 0,
+          "defense": 1,
+          "spAtk": 32,
+          "spDef": 0,
+          "speed": 0
+        },
+        "gender": "male",
+        "slot": 4
+      },
+      {
+        "name": "ガオガエン",
+        "slug": "incineroar",
+        "ability": "いかく",
+        "item": "オボンのみ",
+        "teraType": "ほのお",
+        "nature": "おっとり",
+        "moves": [
+          "ねこだまし",
+          "しじくつき",
+          "フレアドライブ",
+          "すてゼリフ"
+        ],
+        "stats": {
+          "hp": 155,
+          "attack": 200,
+          "defense": 82,
+          "spAtk": 100,
+          "spDef": 172,
+          "speed": 0
+        },
+        "evs": {
+          "hp": 0,
+          "attack": 32,
+          "defense": 2,
+          "spAtk": 0,
+          "spDef": 32,
+          "speed": 0
+        },
+        "gender": "male",
+        "slot": 5
+      },
+      {
+        "name": "マリルリ",
+        "slug": "azumarill",
+        "ability": "ちからもち",
+        "item": "たべのこし",
+        "teraType": "みず",
+        "nature": "まじめ",
+        "moves": [
+          "あまごい",
+          "ハイドロポンプ",
+          "すてみタックル",
+          "ばかぢから"
+        ],
+        "stats": {
+          "hp": 175,
+          "attack": 70,
+          "defense": 90,
+          "spAtk": 88,
+          "spDef": 100,
+          "speed": 0
+        },
+        "evs": {
+          "hp": 0,
+          "attack": 0,
+          "defense": 0,
+          "spAtk": 0,
+          "spDef": 0,
+          "speed": 0
+        },
+        "gender": "male",
+        "slot": 6
+      }
+    ]
+  },
+  {
     "id": "team-gvil82tj-vft9w5",
     "title": "ベルモット の構築",
     "author": "ベルモット",

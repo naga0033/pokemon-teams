@@ -3,8 +3,8 @@ import Link from "next/link";
 import { SearchFilters } from "@/components/SearchFilters";
 import { TrainerCard } from "@/components/TrainerCard";
 import { DUMMY_TEAMS } from "@/lib/dummy-teams";
-import { getSuggestedPokemonNames, searchTeams } from "@/lib/search";
 import { loadSavedTeams } from "@/lib/saved-teams";
+import { getUsageSuggestNames } from "@/lib/usage-ranking";
 
 export const dynamic = "force-dynamic"; // 保存データ反映のため毎回読み込み
 
@@ -14,7 +14,7 @@ export default async function HomePage() {
   const latest = [...allTeams]
     .sort((a, b) => b.registeredAt.localeCompare(a.registeredAt))
     .slice(0, 6);
-  const suggestions = getSuggestedPokemonNames(searchTeams({ format: "single" }, savedTeams), [], 8);
+  const suggestions = getUsageSuggestNames("single", [], 8);
 
   return (
     <div className="space-y-14">

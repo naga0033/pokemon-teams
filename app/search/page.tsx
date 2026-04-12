@@ -1,16 +1,15 @@
 // 構築記事検索ページ (白地版)
-import Link from "next/link";
 import { SearchFilters } from "@/components/SearchFilters";
 import { TrainerCard } from "@/components/TrainerCard";
 import { Pagination } from "@/components/Pagination";
 import {
-  getSuggestedPokemonNames,
   paginateTeams,
   searchTeams,
   sortTeams,
 } from "@/lib/search";
 import { loadSavedTeams } from "@/lib/saved-teams";
 import type { Format } from "@/lib/types";
+import { getUsageSuggestNames } from "@/lib/usage-ranking";
 
 export const dynamic = "force-dynamic";
 
@@ -35,11 +34,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const page = Number.parseInt(sp.page ?? "1", 10) || 1;
 
   const allMatched = sortTeams(searchTeams({ format, pokemons }, savedTeams));
-  const suggestions = getSuggestedPokemonNames(
-    searchTeams({ format }, savedTeams),
-    pokemons,
-    8,
-  );
+  const suggestions = getUsageSuggestNames(format, pokemons, 8);
   const { items, total, page: currentPage, totalPages } = paginateTeams(allMatched, page);
 
   const currentQuery = new URLSearchParams();
@@ -48,16 +43,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   return (
     <div className="space-y-6">
-      {/* パンくず */}
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-slate-400">
-        <Link href="/" className="hover:text-cyan-600">
-          ホーム
-        </Link>
-        <span>›</span>
-        <span className="text-slate-700">構築検索</span>
-      </div>
-
-      {/* 検索フィルタ (上部 sticky) */}
       <SearchFilters
         initialFormat={format}
         initialPokemons={pokemons}

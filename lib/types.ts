@@ -12,6 +12,8 @@ export type StatValues = {
 };
 
 export type PokemonSlot = {
+  /** チーム内の並び順 */
+  slot?: number;
   /** 日本語名 (例: "カバルドン") - 正規化キーとして利用 */
   name: string;
   /** 英語 slug (例: "hippowdon") - 画像パス解決用 */
@@ -53,6 +55,8 @@ export type Team = {
   rating?: number;
   /** 元記事 / X 投稿の URL */
   sourceUrl?: string;
+  /** チームコード */
+  teamCode?: string;
   /** 6 体のポケモン */
   pokemons: PokemonSlot[];
   /** 登録日 (ISO 文字列) */

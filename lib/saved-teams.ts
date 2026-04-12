@@ -16,3 +16,13 @@ export async function loadSavedTeams(): Promise<Team[]> {
     return [];
   }
 }
+
+export async function loadSavedTeamById(id: string): Promise<Team | null> {
+  const teams = await loadSavedTeams();
+  return teams.find((team) => team.id === id) ?? null;
+}
+
+export async function saveSavedTeams(teams: Team[]) {
+  await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
+  await fs.writeFile(DATA_PATH, JSON.stringify(teams, null, 2), "utf-8");
+}

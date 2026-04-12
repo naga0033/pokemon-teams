@@ -58,32 +58,22 @@ export function SearchFilters({
   };
 
   return (
-    <section className={sticky ? "sticky top-[68px] z-30 mb-8" : "mb-8"}>
-      <div className="isolate overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_8px_20px_-18px_rgba(15,23,42,0.18)]">
-        {/* ===== ヘッダー: タイトル + 形式トグル + クリア ===== */}
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-[linear-gradient(135deg,#1f2a44,#324b7d)] px-4 py-3 text-white md:px-5">
-          {/* 左: アイコン + タイトル */}
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/12 ring-1 ring-white/15">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="h-4.5 w-4.5"
-              >
-                <circle cx="11" cy="11" r="6.5" />
-                <path d="m16 16 4.5 4.5" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold tracking-[0.22em] text-sky-100/80">SEARCH STUDIO</p>
-              <h2 className="mt-0.5 text-lg font-black md:text-xl">構築をしぼりこむ</h2>
-            </div>
+    <section className={sticky ? "sticky top-[68px] z-30 mb-8" : "relative z-30 mb-8"}>
+      <div className="isolate overflow-visible rounded-[24px] border border-slate-200 bg-white shadow-[0_8px_20px_-18px_rgba(15,23,42,0.18)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-[linear-gradient(135deg,#1f2a44,#324b7d)] px-4 py-4 text-white md:px-5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="h-5 w-5"
+            >
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="m16 16 4.5 4.5" />
+            </svg>
           </div>
-
-          {/* 右: コンパクトな形式トグル + クリア */}
           <div className="flex items-center gap-2">
             <div className="inline-flex rounded-full bg-white/10 p-1 ring-1 ring-white/15">
               <button
@@ -130,6 +120,7 @@ export function SearchFilters({
                 onChange={(nextValue) => updateRow(index, nextValue)}
                 onRemove={() => removeRow(index)}
                 removable={pokemonRows.length > 1}
+                format={format}
               />
             ))}
           </div>
@@ -151,22 +142,14 @@ export function SearchFilters({
           </div>
 
           {/* 検索ボタン */}
-          <div className="rounded-[20px] bg-slate-900 p-3.5 text-white">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold tracking-[0.18em] text-slate-400">READY</p>
-                <p className="mt-1 text-xs text-slate-200">
-                  ひらがな・カタカナ・半角全角の違いは吸収して検索します。
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleSearch}
-                className="btn-neon rounded-full px-6 py-2.5 text-sm"
-              >
-                この条件で検索する
-              </button>
-            </div>
+          <div className="flex justify-end -mt-1">
+            <button
+              type="button"
+              onClick={handleSearch}
+              className="btn-neon rounded-full px-6 py-2.5 text-sm"
+            >
+              この条件で検索する
+            </button>
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { cropTeamImage, dataUrlToBlob } from "@/lib/image-crop";
 import { getHomeSpriteUrl } from "@/lib/pokemon-sprite";
 import { getEnSlug } from "@/lib/pokemon-names";
 
@@ -51,6 +52,74 @@ type ParsedTeam = {
 
 type Stage = "idle" | "fetching" | "analyzing" | "saving";
 
+const STAT_KEYS: Array<keyof StatValues> = ["hp", "attack", "defense", "spAtk", "spDef", "speed"];
+const MAX_SLOT_REANALYZE = 3;
+
+function countFilledMoves(moves: string[]) {
+  return moves.filter((move) => move && move.trim().length > 0).length;
+}
+
+function scorePokemonForRefine(pokemon: ParsedPokemon) {
+  return (
+    (pokemon.name ? 2 : 0) +
+    (pokemon.ability ? 1 : 0) +
+    (pokemon.item ? 2 : 0) +
+    (pokemon.teraType ? 1 : 0) +
+    countFilledMoves(pokemon.moves)
+  );
+}
+
+function shouldRefinePokemon(pokemon: ParsedPokemon) {
+  return !pokemon.name || !pokemon.ability || !pokemon.item || countFilledMoves(pokemon.moves) < 4;
+}
+
+function scoreStatBlock(values?: StatValues) {
+  if (!values) return 0;
+  return STAT_KEYS.reduce((score, key) => {
+    return typeof values[key] === "number" && Number.isFinite(values[key]) ? score + 1 : score;
+  }, 0);
+}
+
+function mergePokemon(base: ParsedPokemon, candidate: ParsedPokemon): ParsedPokemon {
+  return {
+    ...base,
+    name: candidate.name?.trim() ? candidate.name : base.name,
+    slug: candidate.slug ?? base.slug,
+    ability: candidate.ability?.trim() ? candidate.ability : base.ability,
+    item: candidate.item?.trim() ? candidate.item : base.item,
+    teraType: candidate.teraType?.trim() ? candidate.teraType : base.teraType,
+    gender:
+      candidate.gender && candidate.gender !== "unknown" ? candidate.gender : base.gender,
+    moves:
+      countFilledMoves(candidate.moves) >= countFilledMoves(base.moves)
+        ? candidate.moves
+        : base.moves,
+    nature: candidate.nature?.trim() ? candidate.nature : base.nature,
+    stats:
+      scoreStatBlock(candidate.stats) >= scoreStatBlock(base.stats)
+        ? candidate.stats ?? base.stats
+        : base.stats,
+    evs:
+      scoreStatBlock(candidate.evs) >= scoreStatBlock(base.evs)
+        ? candidate.evs ?? base.evs
+        : base.evs,
+  };
+}
+
+function scoreStatsCandidate(pokemon: {
+  name?: string | null;
+  nature?: string | null;
+  stats?: StatValues;
+  evs?: StatValues;
+}) {
+  return (
+    (pokemon.name ? 1 : 0) +
+    (pokemon.nature ? 2 : 0) +
+    scoreStatBlock(pokemon.stats) +
+    scoreStatBlock(pokemon.evs)
+  );
+}
+
 export default function IngestPage() {
   const [url, setUrl] = useState("");
   const [tweetData, setTweetData] = useState<TweetData | null>(null);
@@ -62,11 +131,53 @@ export default function IngestPage() {
   const [saveFormat, setSaveFormat] = useState<"single" | "double">("single");
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
+  const updatePokemon = useCallback(
+    (slot: number, updater: (pokemon: ParsedPokemon) => ParsedPokemon) => {
+      setParsed((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          pokemons: current.pokemons.map((pokemon) =>
+            pokemon.slot === slot ? updater(pokemon) : pokemon,
+          ),
+        };
+      });
+    },
+    [],
+  );
+
+  const updatePokemonField = useCallback(
+    (
+      slot: number,
+      field: "name" | "ability" | "item" | "teraType" | "nature",
+      value: string,
+    ) => {
+      updatePokemon(slot, (pokemon) => ({
+        ...pokemon,
+        [field]: value.trim() ? value : null,
+      }));
+    },
+    [updatePokemon],
+  );
+
+  const updatePokemonMove = useCallback(
+    (slot: number, moveIndex: number, value: string) => {
+      updatePokemon(slot, (pokemon) => {
+        const moves = [...pokemon.moves];
+        while (moves.length < 4) moves.push("");
+        moves[moveIndex] = value;
+        return { ...pokemon, moves };
+      });
+    },
+    [updatePokemon],
+  );
+
   /** 1 枚の画像を Claude Haiku に投げて結果を返す。失敗時は null */
   const callAnalyzeApi = useCallback(
     async (
       dataUrl: string,
-    ): Promise<{ parsed: ParsedTeam | null; rawText: string | null; error?: string }> => {
+      slot?: number,
+    ): Promise<{ parsed: ParsedTeam | ParsedPokemon | null; rawText: string | null; error?: string }> => {
       const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
       if (!match) {
         return { parsed: null, rawText: null, error: "画像データ形式が不正" };
@@ -77,7 +188,7 @@ export default function IngestPage() {
         const res = await fetch("/api/analyze-team", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: base64, imageMediaType: mediaType }),
+          body: JSON.stringify({ imageBase64: base64, imageMediaType: mediaType, slot }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -87,7 +198,7 @@ export default function IngestPage() {
             error: data?.error ?? "解析失敗",
           };
         }
-        return { parsed: data.result as ParsedTeam, rawText: data.rawText ?? null };
+        return { parsed: data.result as ParsedTeam | ParsedPokemon, rawText: data.rawText ?? null };
       } catch (err) {
         return {
           parsed: null,
@@ -104,6 +215,45 @@ export default function IngestPage() {
     if (!result) return -1;
     return result.pokemons.filter((p) => p.name && p.name.trim().length > 0).length;
   };
+
+  const refineIncompleteSlots = useCallback(
+    async (imageDataUrl: string, team: ParsedTeam) => {
+      const targets = [...team.pokemons]
+        .filter(shouldRefinePokemon)
+        .sort((a, b) => scorePokemonForRefine(a) - scorePokemonForRefine(b))
+        .slice(0, MAX_SLOT_REANALYZE);
+
+      if (targets.length === 0) {
+        return team;
+      }
+
+      try {
+        const cropped = await cropTeamImage(await dataUrlToBlob(imageDataUrl));
+        let nextTeam = team;
+
+        for (const pokemon of targets) {
+          const crop = cropped[pokemon.slot - 1];
+          if (!crop) continue;
+
+          const result = await callAnalyzeApi(crop.dataUrl, pokemon.slot);
+          const candidate = result.parsed as ParsedPokemon | null;
+          if (!candidate || typeof candidate !== "object") continue;
+
+          nextTeam = {
+            ...nextTeam,
+            pokemons: nextTeam.pokemons.map((current) =>
+              current.slot === pokemon.slot ? mergePokemon(current, candidate) : current,
+            ),
+          };
+        }
+
+        return nextTeam;
+      } catch {
+        return team;
+      }
+    },
+    [callAnalyzeApi],
+  );
 
   /** ステータス画面 (実数値/努力値) を解析する */
   const callStatsApi = useCallback(
@@ -155,9 +305,10 @@ export default function IngestPage() {
       for (let i = 0; i < limit; i++) {
         const result = await callAnalyzeApi(images[i].dataUrl);
         if (result.error) lastError = result.error;
-        const score = scoreResult(result.parsed);
+        const parsedTeam = result.parsed as ParsedTeam | null;
+        const score = scoreResult(parsedTeam);
         if (score > best.score) {
-          best = { index: i, parsed: result.parsed, rawText: result.rawText, score };
+          best = { index: i, parsed: parsedTeam, rawText: result.rawText, score };
         }
         if (score >= 6) break;
       }
@@ -174,27 +325,42 @@ export default function IngestPage() {
         return;
       }
 
+      if (best.parsed) {
+        best.parsed = await refineIncompleteSlots(images[best.index].dataUrl, best.parsed);
+      }
+
       // Phase 2: 他の画像をステータス画面として解析し、努力値をマージ
       if (best.parsed && images.length > 1) {
+        let mergedTeam = best.parsed;
         for (let i = 0; i < limit; i++) {
           if (i === best.index) continue; // 能力画面はスキップ
           const statsResult = await callStatsApi(images[i].dataUrl);
           if (statsResult.stats.length > 0) {
-            // スロット番号でマージ
-            const merged = best.parsed.pokemons.map((p) => {
-              const matching = statsResult.stats.find((s) => s.slot === p.slot);
-              if (!matching) return p;
-              return {
-                ...p,
-                nature: matching.nature ?? undefined,
-                stats: matching.stats ?? undefined,
-                evs: matching.evs ?? undefined,
-              };
-            });
-            best.parsed = { ...best.parsed, pokemons: merged };
-            break; // 最初にヒットしたステータス画面だけ使う
+            mergedTeam = {
+              ...mergedTeam,
+              pokemons: mergedTeam.pokemons.map((p) => {
+                const matching = statsResult.stats.find((s) => s.slot === p.slot);
+                if (!matching) return p;
+                const candidateScore = scoreStatsCandidate(matching);
+                const currentScore = scoreStatsCandidate(p);
+                if (candidateScore < currentScore) return p;
+                return {
+                  ...p,
+                  nature: matching.nature ?? p.nature,
+                  stats:
+                    scoreStatBlock(matching.stats) >= scoreStatBlock(p.stats)
+                      ? matching.stats ?? p.stats
+                      : p.stats,
+                  evs:
+                    scoreStatBlock(matching.evs) >= scoreStatBlock(p.evs)
+                      ? matching.evs ?? p.evs
+                      : p.evs,
+                };
+              }),
+            };
           }
         }
+        best.parsed = mergedTeam;
       }
 
       setActiveImageIndex(best.index);
@@ -202,7 +368,7 @@ export default function IngestPage() {
       setRawText(best.rawText);
       setStage("idle");
     },
-    [callAnalyzeApi, callStatsApi],
+    [callAnalyzeApi, callStatsApi, refineIncompleteSlots],
   );
 
   const handleFetch = useCallback(async () => {
@@ -249,7 +415,7 @@ export default function IngestPage() {
       setRawText(null);
       const result = await callAnalyzeApi(tweetData.images[index].dataUrl);
       if (result.rawText) setRawText(result.rawText);
-      if (result.parsed) setParsed(result.parsed);
+      if (result.parsed) setParsed(result.parsed as ParsedTeam);
       if (result.error) setError(result.error);
       setStage("idle");
     },
@@ -296,6 +462,7 @@ export default function IngestPage() {
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
+              onFocus={(e) => e.currentTarget.select()}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !loading && url.trim()) handleFetch();
               }}
@@ -322,21 +489,6 @@ export default function IngestPage() {
       {error && (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           ⚠ {error}
-        </div>
-      )}
-
-      {/* 進捗 */}
-      {loading && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs text-slate-600">
-            <span>
-              {stage === "fetching" && "ツイート取得中…"}
-              {stage === "analyzing" && "Claude Haiku で解析中…"}
-            </span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-            <div className="h-full w-1/3 animate-pulse bg-gradient-to-r from-cyan-400 to-violet-500" />
-          </div>
         </div>
       )}
 
@@ -477,17 +629,22 @@ export default function IngestPage() {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {parsed.pokemons.map((p) => (
-              <PokemonResultCard key={p.slot} pokemon={p} />
+              <PokemonResultCard
+                key={p.slot}
+                pokemon={p}
+                onFieldChange={updatePokemonField}
+                onMoveChange={updatePokemonMove}
+              />
             ))}
           </div>
         </section>
       )}
 
-      {/* 生レスポンス (デバッグ): parsed の有無に関わらず rawText があれば表示 */}
-      {rawText && (
+      {/* 生レスポンス (デバッグ): エラー時のみ表示 */}
+      {error && rawText && (
         <details
           className="rounded-xl border border-slate-200 bg-white p-3 text-[11px]"
-          open={!parsed}
+          open
         >
           <summary className="cursor-pointer font-bold text-slate-500">
             Claude からの生レスポンス (デバッグ用)
@@ -501,7 +658,19 @@ export default function IngestPage() {
   );
 }
 
-function PokemonResultCard({ pokemon }: { pokemon: ParsedPokemon }) {
+function PokemonResultCard({
+  pokemon,
+  onFieldChange,
+  onMoveChange,
+}: {
+  pokemon: ParsedPokemon;
+  onFieldChange: (
+    slot: number,
+    field: "name" | "ability" | "item" | "teraType" | "nature",
+    value: string,
+  ) => void;
+  onMoveChange: (slot: number, moveIndex: number, value: string) => void;
+}) {
   // サーバー側で名寄せ済みの slug を優先、なければクライアント側で試行
   const slug = pokemon.slug ?? (pokemon.name ? getEnSlug(pokemon.name) : null);
   const fieldsFilled =
@@ -512,8 +681,8 @@ function PokemonResultCard({ pokemon }: { pokemon: ParsedPokemon }) {
   const isComplete = fieldsFilled >= 7;
 
   return (
-    <div className="card-frame">
-      <div className="card-body p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="p-4">
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-bold tracking-wider text-slate-400">
             SLOT {pokemon.slot}
@@ -546,47 +715,70 @@ function PokemonResultCard({ pokemon }: { pokemon: ParsedPokemon }) {
               ?
             </div>
           )}
-          <div className="min-w-0 flex-1">
-            <p className="text-base font-black text-slate-900">
-              {pokemon.name ?? "(名前未認識)"}
-              {pokemon.teraType && (
-                <span className="ml-2 rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700 ring-1 ring-violet-200">
-                  テラス: {pokemon.teraType}
-                </span>
-              )}
-            </p>
-            {pokemon.ability && (
-              <p className="text-xs text-slate-600">
-                <span className="text-slate-400">特性:</span> {pokemon.ability}
-              </p>
-            )}
-            {pokemon.item && (
-              <p className="text-xs text-slate-600">
-                <span className="text-slate-400">持ち物:</span> {pokemon.item}
-              </p>
-            )}
-            {pokemon.nature && (
-              <p className="text-xs text-slate-600">
-                <span className="text-slate-400">性格:</span>{" "}
-                <span className="font-bold text-violet-600">{pokemon.nature}</span>
-              </p>
-            )}
+          <div className="grid min-w-0 flex-1 gap-2">
+            <div className="grid gap-2 md:grid-cols-[1.2fr,0.8fr]">
+              <label className="grid gap-1">
+                <span className="text-[10px] font-bold tracking-wider text-slate-400">ポケモン名</span>
+                <input
+                  type="text"
+                  value={pokemon.name ?? ""}
+                  onChange={(e) => onFieldChange(pokemon.slot, "name", e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm font-black text-slate-900 outline-none focus:border-cyan-400"
+                />
+              </label>
+              <label className="grid gap-1">
+                <span className="text-[10px] font-bold tracking-wider text-slate-400">テラスタイプ</span>
+                <input
+                  type="text"
+                  value={pokemon.teraType ?? ""}
+                  onChange={(e) => onFieldChange(pokemon.slot, "teraType", e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-violet-400"
+                />
+              </label>
+            </div>
+
+            <div className="grid gap-2 md:grid-cols-3">
+              <label className="grid gap-1">
+                <span className="text-[10px] font-bold tracking-wider text-slate-400">特性</span>
+                <input
+                  type="text"
+                  value={pokemon.ability ?? ""}
+                  onChange={(e) => onFieldChange(pokemon.slot, "ability", e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-cyan-400"
+                />
+              </label>
+              <label className="grid gap-1">
+                <span className="text-[10px] font-bold tracking-wider text-slate-400">持ち物</span>
+                <input
+                  type="text"
+                  value={pokemon.item ?? ""}
+                  onChange={(e) => onFieldChange(pokemon.slot, "item", e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-cyan-400"
+                />
+              </label>
+              <label className="grid gap-1">
+                <span className="text-[10px] font-bold tracking-wider text-slate-400">性格</span>
+                <input
+                  type="text"
+                  value={pokemon.nature ?? ""}
+                  onChange={(e) => onFieldChange(pokemon.slot, "nature", e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-violet-700 outline-none focus:border-violet-400"
+                />
+              </label>
+            </div>
           </div>
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-1.5 text-[11px]">
           {[0, 1, 2, 3].map((i) => (
-            <div
+            <input
               key={i}
-              className={
-                pokemon.moves[i]
-                  ? "truncate rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-slate-700"
-                  : "truncate rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2 py-1.5 text-slate-400"
-              }
-            >
-              <span className="mr-1 text-cyan-500">›</span>
-              {pokemon.moves[i] ?? "(未認識)"}
-            </div>
+              type="text"
+              value={pokemon.moves[i] ?? ""}
+              onChange={(e) => onMoveChange(pokemon.slot, i, e.target.value)}
+              placeholder={`技${i + 1}`}
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] text-slate-700 outline-none placeholder:text-slate-400 focus:border-cyan-400"
+            />
           ))}
         </div>
 

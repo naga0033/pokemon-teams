@@ -63,19 +63,6 @@ export function TrainerCard({ team }: Props) {
               {team.title}
             </h3>
 
-            {/* ---- 投稿者・レート ---- */}
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-5 w-5 rounded-full bg-gradient-to-br from-cyan-400 to-violet-500" />
-                <span className="font-medium text-slate-700">{team.author}</span>
-              </span>
-              {team.rating != null && (
-                <span className="font-mono text-cyan-600">
-                  ★ {team.rating.toFixed(1)}
-                </span>
-              )}
-            </div>
-
             {/* ---- 6 体ロスター: 2 行 3 列グリッド ---- */}
             <div className="mt-4 grid grid-cols-3 gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-2">
               {team.pokemons.map((p, idx) => (
@@ -96,13 +83,6 @@ export function TrainerCard({ team }: Props) {
               ))}
             </div>
 
-            {/* ---- 下部バー ---- */}
-            <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-3 text-[10px] text-slate-400">
-              <span className="tracking-wider">ポケチャン · S{team.season?.replace(/^S/i, "") ?? "-"}</span>
-              <span className="font-mono text-cyan-500/80">
-                {team.id.slice(0, 10).toUpperCase()}
-              </span>
-            </div>
           </div>
         </div>
       </div>
