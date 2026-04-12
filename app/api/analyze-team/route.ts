@@ -128,7 +128,7 @@ export async function POST(req: Request) {
   let rawText = "";
   try {
     const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system: isSingleSlot ? getSingleSlotPrompt(slot) : FULL_TEAM_PROMPT,
       messages: [
@@ -271,30 +271,27 @@ function normalizePokemonRecord(input: unknown): Record<string, unknown> {
     }
   }
 
-  const resolvedAbility = pickBestCategorizedValue(
-    [rawAbility, ...rawMoves, rawItem],
-    ABILITY_JA_LIST,
-    2,
-  );
-  out.ability = resolvedAbility ?? null;
+  // 各カテゴリは自分の候補だけでマッチング（別カテゴリ混入を防止）
+  const resolvedAbility = rawAbility
+    ? pickBestCategorizedValue([rawAbility], ABILITY_JA_LIST, 1)
+    : null;
+  out.ability = resolvedAbility ?? (rawAbility || null);
 
-  const resolvedItem = pickBestCategorizedValue(
-    [rawItem, ...rawMoves, rawAbility],
-    ITEM_JA_LIST,
-    2,
-  );
-  out.item = resolvedItem ?? null;
+  const resolvedItem = rawItem
+    ? pickBestCategorizedValue([rawItem], ITEM_JA_LIST, 1)
+    : null;
+  out.item = resolvedItem ?? (rawItem || null);
 
   const selectedMoveSet = new Set<string>();
   if (resolvedAbility) selectedMoveSet.add(resolvedAbility);
   if (resolvedItem) selectedMoveSet.add(resolvedItem);
 
   const resolvedMoves = pickCategorizedMoves(
-    [...rawMoves, rawItem, rawAbility],
+    rawMoves,
     selectedMoveSet,
     4,
   );
-  out.moves = resolvedMoves;
+  out.moves = resolvedMoves.length > 0 ? resolvedMoves : rawMoves;
 
   return out;
 }
