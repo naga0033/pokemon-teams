@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { cookies } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import { Noto_Sans_JP, Orbitron } from "next/font/google";
 import { ADMIN_COOKIE_NAME, isValidAdminToken } from "@/lib/admin-auth";
 import "./globals.css";
+
+const GA_ID = "G-Y2608K2MZP";
 
 const bodyFont = Noto_Sans_JP({
   subsets: ["latin"],
@@ -30,6 +33,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="ja">
+      <head>
+        <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />
+        <Script id="gtag-init" strategy="afterInteractive">
+          {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');`}
+        </Script>
+      </head>
       <body className={`${bodyFont.variable} ${displayFont.variable} min-h-screen font-sans antialiased`}>
         {/* ヘッダー */}
         <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white">
