@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getEnSlug, resolvePokemonJaName } from "@/lib/pokemon-names";
-import { loadSavedTeams, saveSavedTeams } from "@/lib/saved-teams";
+import { loadSavedTeamById, updateTeam } from "@/lib/saved-teams";
 import type { Format, PokemonSlot, Team } from "@/lib/types";
 import { ADMIN_COOKIE_NAME, isValidAdminToken } from "@/lib/admin-auth";
 
@@ -10,7 +10,7 @@ function isAdmin(req: Request) {
   return isValidAdminToken(req.headers.get("cookie")?.match(new RegExp(`${ADMIN_COOKIE_NAME}=([^;]+)`))?.[1] ?? null);
 }
 
-function normalizePokemon(input: Record<string, unknown>, index: number): PokemonSlot {
+function normalizePokemon(input: Record<string, unknown>): PokemonSlot {
   const rawName = typeof input.name === "string" ? input.name.trim() : "";
   const resolvedName = rawName ? resolvePokemonJaName(rawName) ?? rawName : "(不明)";
   const slug = getEnSlug(resolvedName) ?? "unknown";
@@ -69,13 +69,11 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     return NextResponse.json({ error: "JSON の解析に失敗しました" }, { status: 400 });
   }
 
-  const teams = await loadSavedTeams();
-  const targetIndex = teams.findIndex((team) => team.id === id);
-  if (targetIndex < 0) {
+  const current = await loadSavedTeamById(id);
+  if (!current) {
     return NextResponse.json({ error: "構築が見つかりません" }, { status: 404 });
   }
 
-  const current = teams[targetIndex];
   const nextTeam: Team = {
     ...current,
     title: typeof body.title === "string" && body.title.trim() ? body.title.trim() : current.title,
@@ -86,12 +84,16 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     teamCode:
       typeof body.teamCode === "string" && body.teamCode.trim() ? body.teamCode.trim() : undefined,
     pokemons: Array.isArray(body.pokemons)
-      ? body.pokemons.map((pokemon, index) => normalizePokemon(pokemon, index))
+      ? body.pokemons.map((pokemon) => normalizePokemon(pokemon))
       : current.pokemons,
   };
 
-  teams[targetIndex] = nextTeam;
-  await saveSavedTeams(teams);
+  try {
+    await updateTeam(id, nextTeam);
+  } catch (err) {
+    console.error("[teams/patch]", err);
+    return NextResponse.json({ error: "更新に失敗しました" }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true, team: nextTeam });
 }

@@ -264,27 +264,28 @@ function normalizePokemonRecord(input: unknown): Record<string, unknown> {
     }
   }
 
-  // 各カテゴリは自分の候補だけでマッチング（別カテゴリ混入を防止）
-  const resolvedAbility = rawAbility
-    ? pickBestCategorizedValue([rawAbility], ABILITY_JA_LIST, 1)
-    : null;
-  out.ability = resolvedAbility ?? (rawAbility || null);
+  // Haiku がフィールドを混同するため、全候補を集めて正しいカテゴリに振り分ける
+  const allValues = rawCandidates;
+  const used = new Set<string>();
 
-  const resolvedItem = rawItem
-    ? pickBestCategorizedValue([rawItem], ITEM_JA_LIST, 1)
-    : null;
-  out.item = resolvedItem ?? (rawItem || null);
+  // 1. 特性を探す（全候補から）
+  const resolvedAbility = pickBestCategorizedValue(allValues, ABILITY_JA_LIST, 1);
+  out.ability = resolvedAbility ?? null;
+  if (resolvedAbility) used.add(resolvedAbility);
 
-  const selectedMoveSet = new Set<string>();
-  if (resolvedAbility) selectedMoveSet.add(resolvedAbility);
-  if (resolvedItem) selectedMoveSet.add(resolvedItem);
+  // 2. 持ち物を探す（特性で使った値を除外）
+  const itemCandidates = allValues.filter((v) => !used.has(v));
+  const resolvedItem = pickBestCategorizedValue(itemCandidates, ITEM_JA_LIST, 1);
+  out.item = resolvedItem ?? null;
+  if (resolvedItem) used.add(resolvedItem);
 
+  // 3. 技を探す（特性・持ち物で使った値を除外）
   const resolvedMoves = pickCategorizedMoves(
-    rawMoves,
-    selectedMoveSet,
+    allValues,
+    used,
     4,
   );
-  out.moves = resolvedMoves.length > 0 ? resolvedMoves : rawMoves;
+  out.moves = resolvedMoves;
 
   return out;
 }

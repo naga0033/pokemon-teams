@@ -1,13 +1,9 @@
-// 解析済みの構築データを保存する API
-// MVP では data/teams.json に追記するシンプルな実装 (後で Supabase に差し替え)
 import { NextResponse } from "next/server";
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import { resolvePokemonJaName, getEnSlug } from "@/lib/pokemon-names";
+import { insertTeam } from "@/lib/saved-teams";
+import type { Team, PokemonSlot } from "@/lib/types";
 
 export const runtime = "nodejs";
-
-const DATA_PATH = path.join(process.cwd(), "data", "teams.json");
 
 type SaveBody = {
   trainerName?: string;
@@ -29,7 +25,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "ポケモンデータがありません" }, { status: 400 });
   }
 
-  // ポケモンデータを整形
   const pokemons = body.pokemons.map((p, i) => {
     const name = typeof p.name === "string" ? p.name : null;
     const resolved = name ? resolvePokemonJaName(name) : null;
@@ -41,23 +36,20 @@ export async function POST(req: Request) {
       teraType: typeof p.teraType === "string" ? p.teraType : undefined,
       nature: typeof p.nature === "string" ? p.nature : undefined,
       moves: Array.isArray(p.moves) ? p.moves.filter((m): m is string => typeof m === "string") : [],
-      stats: typeof p.stats === "object" && p.stats ? p.stats : undefined,
-      evs: typeof p.evs === "object" && p.evs ? p.evs : undefined,
-      gender: typeof p.gender === "string" ? p.gender : undefined,
+      stats: typeof p.stats === "object" && p.stats ? p.stats as PokemonSlot["stats"] : undefined,
+      evs: typeof p.evs === "object" && p.evs ? p.evs as PokemonSlot["stats"] : undefined,
+      gender: p.gender === "male" || p.gender === "female" || p.gender === "unknown" ? p.gender as "male" | "female" | "unknown" : undefined,
       slot: typeof p.slot === "number" ? p.slot : i + 1,
     };
   });
 
-  // ID 生成 (英数字のみ: team- + ランダム8桁 + タイムスタンプ下6桁)
   const rand = Math.random().toString(36).slice(2, 10);
   const ts = Date.now().toString(36).slice(-6);
   const id = `team-${rand}-${ts}`;
 
-  const team = {
+  const team: Team = {
     id,
-    title: body.trainerName
-      ? `${body.trainerName} の構築`
-      : "名前未設定の構築",
+    title: body.trainerName ? `${body.trainerName} の構築` : "名前未設定の構築",
     author: body.trainerName ?? "不明",
     format: body.format ?? "single",
     teamCode: body.teamCode ?? undefined,
@@ -66,25 +58,12 @@ export async function POST(req: Request) {
     pokemons,
   };
 
-  // data/teams.json に追記
   try {
-    let existing: unknown[] = [];
-    try {
-      const raw = await fs.readFile(DATA_PATH, "utf-8");
-      existing = JSON.parse(raw);
-      if (!Array.isArray(existing)) existing = [];
-    } catch {
-      // ファイルが壊れてたらリセット
-      existing = [];
-    }
-
-    // 先頭に追加 (新しい順)
-    existing.unshift(team);
-    await fs.writeFile(DATA_PATH, JSON.stringify(existing, null, 2), "utf-8");
+    await insertTeam(team);
   } catch (err) {
-    console.error("[teams/save] Write error:", err);
+    console.error("[teams/save]", err);
     return NextResponse.json(
-      { error: "保存に失敗しました" },
+      { error: err instanceof Error ? err.message : "保存に失敗しました" },
       { status: 500 },
     );
   }
