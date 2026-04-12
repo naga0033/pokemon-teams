@@ -64,6 +64,25 @@ const MOVE_JA_OPTIONS = Array.from(new Set(Object.values(MOVE_NAMES_JA))).filter
 const ABILITY_JA_OPTIONS = Array.from(new Set(Object.values(ABILITY_NAMES_JA))).filter(Boolean).sort();
 const ITEM_JA_OPTIONS = ITEMS.map((i) => i.ja).filter((n): n is string => Boolean(n) && !n.startsWith("もちものを選択")).sort();
 
+const TERA_TYPES = [
+  "ノーマル", "ほのお", "みず", "でんき", "くさ", "こおり",
+  "かくとう", "どく", "じめん", "ひこう", "エスパー", "むし",
+  "いわ", "ゴースト", "ドラゴン", "あく", "はがね", "フェアリー", "ステラ",
+];
+
+type NatureStatKey = "attack" | "defense" | "spAtk" | "spDef" | "speed";
+const NATURE_STAT_KEYS: NatureStatKey[] = ["attack", "defense", "spAtk", "spDef", "speed"];
+const NATURE_STAT_LABELS: Record<NatureStatKey, string> = {
+  attack: "攻撃", defense: "防御", spAtk: "特攻", spDef: "特防", speed: "素早さ",
+};
+const NATURE_GRID: string[][] = [
+  ["がんばりや", "さみしがり", "いじっぱり", "やんちゃ",   "ゆうかん"],
+  ["ずぶとい",   "すなお",     "わんぱく",   "のうてんき", "のんき"],
+  ["ひかえめ",   "おっとり",   "てれや",     "うっかりや", "れいせい"],
+  ["おだやか",   "おとなしい", "しんちょう", "きまぐれ",   "なまいき"],
+  ["おくびょう", "せっかち",   "ようき",     "むじゃき",   "まじめ"],
+];
+
 const STAT_KEYS: Array<keyof StatValues> = ["hp", "attack", "defense", "spAtk", "spDef", "speed"];
 const MAX_SLOT_REANALYZE = 3;
 
@@ -759,18 +778,16 @@ function PokemonResultCard({
                   className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm font-black text-slate-900 outline-none focus:border-cyan-400"
                 />
               </div>
-              <label className="grid gap-1">
+              <div className="grid gap-1">
                 <span className="text-[10px] font-bold tracking-wider text-slate-400">テラスタイプ</span>
-                <input
-                  type="text"
-                  value={pokemon.teraType ?? ""}
-                  onChange={(e) => onFieldChange(pokemon.slot, "teraType", e.target.value)}
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-violet-400"
+                <TeraTypeGrid
+                  value={pokemon.teraType ?? null}
+                  onChange={(v) => onFieldChange(pokemon.slot, "teraType", v ?? "")}
                 />
-              </label>
+              </div>
             </div>
 
-            <div className="grid gap-2 md:grid-cols-3">
+            <div className="grid gap-2 md:grid-cols-2">
               <div className="grid gap-1">
                 <span className="text-[10px] font-bold tracking-wider text-slate-400">特性</span>
                 <SearchableSelect
@@ -791,16 +808,6 @@ function PokemonResultCard({
                   className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-cyan-400"
                 />
               </div>
-              <div className="grid gap-1">
-                <span className="text-[10px] font-bold tracking-wider text-slate-400">性格</span>
-                <SearchableSelect
-                  value={pokemon.nature ?? ""}
-                  onChange={(v) => onFieldChange(pokemon.slot, "nature", v)}
-                  options={NATURES}
-                  placeholder="性格"
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-violet-700 outline-none focus:border-violet-400"
-                />
-              </div>
             </div>
           </div>
         </div>
@@ -817,6 +824,12 @@ function PokemonResultCard({
             />
           ))}
         </div>
+
+        {/* 性格パレット */}
+        <NaturePalette
+          value={pokemon.nature ?? null}
+          onChange={(v) => onFieldChange(pokemon.slot, "nature", v ?? "")}
+        />
 
         {/* ステータス & 努力値 */}
         <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
@@ -837,6 +850,7 @@ function PokemonResultCard({
                 <input
                   type="number"
                   value={pokemon.stats?.[key] ?? ""}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => onStatChange(pokemon.slot, "stats", key, e.target.value)}
                   placeholder="実数値"
                   className="w-14 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-center font-mono text-[11px] font-bold text-slate-900 outline-none focus:border-cyan-400"
@@ -844,6 +858,7 @@ function PokemonResultCard({
                 <input
                   type="number"
                   value={pokemon.evs?.[key] ?? ""}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => onStatChange(pokemon.slot, "evs", key, e.target.value)}
                   placeholder="努力値"
                   className={`w-12 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-center font-mono text-[10px] outline-none focus:border-amber-400 ${(pokemon.evs?.[key] ?? 0) > 0 ? "font-bold text-amber-600" : "text-slate-400"}`}
@@ -853,6 +868,86 @@ function PokemonResultCard({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function TeraTypeGrid({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  return (
+    <div className="grid grid-cols-5 gap-0.5">
+      <button
+        type="button"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => onChange(null)}
+        className={`py-1 text-[9px] rounded border font-bold transition-colors ${
+          !value ? "bg-slate-500 text-white border-slate-500" : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
+        }`}
+      >
+        なし
+      </button>
+      {TERA_TYPES.map((t) => (
+        <button
+          key={t}
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onChange(t)}
+          className={`py-1 text-[9px] rounded border font-bold transition-colors ${
+            value === t
+              ? "bg-violet-500 text-white border-violet-500"
+              : "bg-white text-slate-600 border-slate-200 hover:bg-violet-50 hover:border-violet-300"
+          }`}
+        >
+          {t}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function NaturePalette({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  return (
+    <div className="mt-3 rounded-lg border border-slate-200 bg-white overflow-hidden">
+      <p className="px-2.5 py-1.5 text-[10px] font-bold tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200">
+        性格補正
+      </p>
+      <div className="grid grid-cols-6 border-b border-slate-100">
+        <div className="bg-slate-50" />
+        {NATURE_STAT_KEYS.map((key) => (
+          <div key={key} className="bg-indigo-50 px-0.5 py-1 text-center text-[9px] font-bold text-indigo-600 border-l border-slate-100">
+            {NATURE_STAT_LABELS[key]}<span className="text-sky-500">↓</span>
+          </div>
+        ))}
+      </div>
+      {NATURE_GRID.map((row, ri) => (
+        <div key={ri} className="grid grid-cols-6">
+          <div className="bg-indigo-50 flex items-center justify-center px-0.5 py-1 border-t border-slate-100">
+            <span className="text-[9px] font-bold text-indigo-600">
+              {NATURE_STAT_LABELS[NATURE_STAT_KEYS[ri]]}<span className="text-rose-500">↑</span>
+            </span>
+          </div>
+          {row.map((nature, ci) => {
+            const isNeutral = ri === ci;
+            const isSelected = value === nature;
+            return (
+              <button
+                key={nature}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onChange(nature)}
+                className={`py-1 text-[10px] font-medium border-t border-l border-slate-100 transition-colors ${
+                  isSelected
+                    ? "bg-green-500 text-white font-bold"
+                    : isNeutral
+                      ? "bg-slate-100 text-slate-400 hover:bg-slate-200"
+                      : "hover:bg-indigo-50 text-slate-700"
+                }`}
+              >
+                {nature}
+              </button>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
