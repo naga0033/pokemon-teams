@@ -374,7 +374,7 @@ export const EN_TO_JA: Record<string, string> = {
   fletchling: "ヤヤコマ", fletchinder: "ヒノヤコマ", talonflame: "ファイアロー",
   scatterbug: "コフキムシ", spewpa: "コフーライ", vivillon: "ビビヨン",
   litleo: "シシコ", pyroar: "カエンジシ",
-  flabebe: "フラベベ", floette: "フラエッテ", florges: "フラージェス",
+  flabebe: "フラベベ", floette: "フラエッテ", "floette-eternal": "フラエッテ(えいえん)", florges: "フラージェス",
   skiddo: "メェークル", gogoat: "ゴーゴート",
   pancham: "ヤンチャム", pangoro: "ゴロンダ",
   furfrou: "トリミアン",

@@ -899,6 +899,7 @@ export const POKEMON_IDS: Record<string, number> = {
   "spewpa": 665,
   "vivillon": 666,
   "floette": 670,
+  "floette-eternal": 10061,
   "florges": 671,
   "gogoat": 673,
   "pangoro": 675,
