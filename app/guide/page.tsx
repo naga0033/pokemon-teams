@@ -27,7 +27,9 @@ export default function GuidePage() {
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-slate-600">
           当サイトでは、X (旧Twitter) に投稿された構築を運営が取り込み、
+          <br className="hidden md:inline" />
           ポケモン名・技・持ち物・努力値などを自動解析して掲載しています。
+          <br className="hidden md:inline" />
           掲載をご希望の方は以下をご確認ください。
         </p>
       </header>
@@ -40,18 +42,39 @@ export default function GuidePage() {
           <p className="text-sm leading-relaxed text-slate-700">
             ポケモンチャンピオンズのチーム確認画面で
             <strong>「能力」タブ</strong>と<strong>「ステータス」タブ</strong>の
-            スクリーンショットを撮影し、X に投稿してください。
+            <br className="hidden md:inline" />
+            スクリーンショットを撮影し、<strong>1つのツイートにまとめて</strong>投稿してください。
+            <br />
+            <br />
+            ツイート本文には<strong>シングル / ダブル</strong>のどちらかも明記してください。
           </p>
+
+          {/* 投稿例の画像 */}
+          <div className="mt-6 overflow-hidden rounded-xl border-2 border-slate-300 bg-slate-50">
+            <div className="bg-slate-700 px-3 py-1.5 text-xs font-bold text-white">
+              投稿のお手本 — 1ツイートに写真をまとめる
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/guide/tweet-example.jpg"
+              alt="投稿のお手本: 1ツイートにバトル画面・能力画面・ステータス画面をまとめた例"
+              className="w-full"
+            />
+            <div className="px-3 py-2 text-xs text-slate-600">
+              このように<strong>1つのツイートに写真をまとめて</strong>投稿していただけると、
+              スムーズに掲載できます。
+            </div>
+          </div>
 
           <div className="mt-6 space-y-4">
             <h3 className="text-sm font-bold text-slate-900">
-              ✅ この画面のスクリーンショットが必要です
+              この画面のスクリーンショットが必要です
             </h3>
 
             {/* 画像1: シングル/ダブル確認画面 */}
             <div className="overflow-hidden rounded-xl border-2 border-emerald-200 bg-emerald-50">
               <div className="bg-emerald-500 px-3 py-1.5 text-xs font-bold text-white">
-                写真① バトル画面 (任意)
+                写真 1 — バトル画面 (任意)
               </div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -60,7 +83,9 @@ export default function GuidePage() {
                 className="w-full"
               />
               <div className="px-3 py-2 text-xs text-slate-600">
-                シングル / ダブルの判定に使います。ツイート本文に書いてあれば<strong>この写真は不要</strong>です。
+                シングル / ダブルの判定に使います。
+                <br />
+                ツイート本文に書いてあれば<strong>この写真は不要</strong>です。
               </div>
             </div>
 
@@ -68,7 +93,7 @@ export default function GuidePage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="overflow-hidden rounded-xl border-2 border-cyan-200 bg-cyan-50">
                 <div className="bg-cyan-500 px-3 py-1.5 text-xs font-bold text-white">
-                  写真② 能力タブ (必須)
+                  写真 2 — 能力タブ (必須)
                 </div>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -83,7 +108,7 @@ export default function GuidePage() {
 
               <div className="overflow-hidden rounded-xl border-2 border-violet-200 bg-violet-50">
                 <div className="bg-violet-500 px-3 py-1.5 text-xs font-bold text-white">
-                  写真③ ステータスタブ (必須)
+                  写真 3 — ステータスタブ (必須)
                 </div>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -100,15 +125,15 @@ export default function GuidePage() {
 
           {/* ニックネームの注意 */}
           <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <h3 className="flex items-center gap-2 text-sm font-bold text-amber-800">
-              <span>⚠️</span>
+            <h3 className="text-sm font-bold text-amber-800">
               ポケモンの名前について
             </h3>
             <p className="mt-2 text-xs leading-relaxed text-amber-700">
-              ポケモンにニックネームをつけていると、正しく情報を読み取れないことがあります。
+              ポケモンにニックネームをつけていると、
+              正しく情報を読み取れないことがあります。
               <br />
-              スクリーンショットを撮る際は、できるだけ<strong>正式名称 (デフォルトの名前)</strong> の
-              状態でお願いいたします。
+              スクリーンショットを撮る際は、
+              できるだけ<strong>正式名称 (デフォルトの名前)</strong> の状態でお願いいたします。
             </p>
           </div>
 
@@ -116,7 +141,8 @@ export default function GuidePage() {
           <div className="mt-6">
             <h3 className="text-sm font-bold text-slate-900">推奨ハッシュタグ</h3>
             <p className="mt-1 text-xs text-slate-600">
-              以下のハッシュタグをつけて投稿していただけると、運営が見つけやすくなります。
+              以下のハッシュタグをつけて投稿していただけると、
+              運営が見つけやすくなります。
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="rounded-full bg-cyan-100 px-3 py-1.5 text-sm font-bold text-cyan-700">
@@ -137,22 +163,22 @@ export default function GuidePage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <ol className="space-y-5">
             <FlowItem
-              number="①"
+              number="1"
               title="X に構築スクリーンショットを投稿"
               desc="能力画面 + ステータス画面のスクショと、シングル/ダブルのどちらかを明記してツイートしてください。"
             />
             <FlowItem
-              number="②"
-              title="運営がツイートを発見 or DMでご連絡"
-              desc="ハッシュタグや検索で構築ツイートを見つけるか、掲載希望のDMをいただきます。"
+              number="2"
+              title="運営がツイートを発見 or DM でご連絡"
+              desc="ハッシュタグや検索で構築ツイートを見つけるか、掲載希望の DM をいただきます。"
             />
             <FlowItem
-              number="③"
+              number="3"
               title="画像を自動解析"
               desc="スクリーンショットからポケモン名・技・持ち物・努力値などを自動で読み取ります。"
             />
             <FlowItem
-              number="④"
+              number="4"
               title="サイトに掲載"
               desc="投稿者名と元ツイートへのリンクを添えて公開します。"
             />
@@ -189,7 +215,7 @@ export default function GuidePage() {
                 >
                   @poketool2
                 </a>{" "}
-                にDMで構築のツイートURLをお送りください。
+                に DM で構築のツイート URL をお送りください。
               </p>
             </div>
           </div>
@@ -223,31 +249,41 @@ export default function GuidePage() {
       <section className="space-y-4">
         <h2 className="text-lg font-black text-slate-900">注意事項</h2>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <ul className="space-y-2 text-sm text-slate-700">
+          <ul className="space-y-3 text-sm text-slate-700">
             <li className="flex items-start gap-2">
-              <span className="mt-0.5 text-cyan-500">●</span>
-              投稿者名と元ツイートへのリンクは必ず掲載します。
+              <span className="mt-0.5 shrink-0 text-cyan-500">●</span>
+              <span>投稿者名と元ツイートへのリンクは必ず掲載します。</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-0.5 text-cyan-500">●</span>
-              構築データの二次利用・転載はいたしません。
+              <span className="mt-0.5 shrink-0 text-cyan-500">●</span>
+              <span>構築データの二次利用・転載はいたしません。</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-0.5 text-cyan-500">●</span>
-              画像の自動解析のため、一部情報が誤って表示される場合があります。
-              お気づきの際はご連絡いただけると助かります。
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-0.5 text-amber-500">●</span>
+              <span className="mt-0.5 shrink-0 text-cyan-500">●</span>
               <span>
-                当サイトの情報の誤りにより対戦の勝敗に影響が生じた場合でも、
-                当サイトは一切の責任を負いかねます。
-                <strong>ダメージ計算などにご利用の際は、念のため元のツイートもご確認ください。</strong>
+                画像の自動解析のため、一部情報が誤って表示される場合があります。
+                <br />
+                お気づきの際はご連絡いただけると助かります。
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-0.5 text-cyan-500">●</span>
-              当サイトは任天堂・株式会社ポケモン及び関係各社とは一切関係のない非公式ファンサイトです。
+              <span className="mt-0.5 shrink-0 text-amber-500">●</span>
+              <span>
+                当サイトの情報の誤りにより対戦の勝敗に影響が生じた場合でも、
+                <br />
+                当サイトは一切の責任を負いかねます。
+                <br />
+                <strong>
+                  ダメージ計算などにご利用の際は、念のため元のツイートもご確認ください。
+                </strong>
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0 text-cyan-500">●</span>
+              <span>
+                当サイトは任天堂・株式会社ポケモン及び
+                関係各社とは一切関係のない非公式ファンサイトです。
+              </span>
             </li>
           </ul>
         </div>
@@ -259,7 +295,7 @@ export default function GuidePage() {
           href="/"
           className="inline-block rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 px-8 py-3 text-sm font-bold text-white shadow-md transition hover:opacity-90"
         >
-          構築コレクションを見る →
+          構築コレクションを見る
         </Link>
       </div>
     </div>
@@ -293,7 +329,7 @@ function FlowItem({
       </span>
       <div>
         <p className="text-sm font-bold text-slate-900">{title}</p>
-        <p className="mt-0.5 text-xs text-slate-600">{desc}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{desc}</p>
       </div>
     </li>
   );
