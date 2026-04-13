@@ -6,6 +6,7 @@ import { TeamRoster } from "@/components/TeamRoster";
 import { CopyStatsButton } from "@/components/CopyStatsButton";
 import { DUMMY_TEAMS } from "@/lib/dummy-teams";
 import { loadSavedTeams } from "@/lib/saved-teams";
+import { isAdminSession } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -54,20 +55,31 @@ export default async function TeamDetailPage({ params }: Props) {
   const allTeams = [...savedTeams, ...DUMMY_TEAMS];
   const team = allTeams.find((t) => t.id === id);
   if (!team) notFound();
+  const isAdmin = await isAdminSession();
 
   return (
     <div className="space-y-8">
-      {/* パンくず */}
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-slate-400">
-        <Link href="/" className="hover:text-cyan-600">
-          HOME
-        </Link>
-        <span>›</span>
-        <Link href="/search" className="hover:text-cyan-600">
-          COLLECTION
-        </Link>
-        <span>›</span>
-        <span className="text-slate-700">CARD</span>
+      {/* パンくず + 管理者向け編集ボタン */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-slate-400">
+          <Link href="/" className="hover:text-cyan-600">
+            HOME
+          </Link>
+          <span>›</span>
+          <Link href="/search" className="hover:text-cyan-600">
+            COLLECTION
+          </Link>
+          <span>›</span>
+          <span className="text-slate-700">CARD</span>
+        </div>
+        {isAdmin && (
+          <Link
+            href={`/admin/teams/${encodeURIComponent(team.id)}`}
+            className="rounded-full bg-amber-500 px-4 py-1.5 text-[11px] font-bold text-white shadow hover:bg-amber-600"
+          >
+            ✎ この構築を編集
+          </Link>
+        )}
       </div>
 
       {/* ヘッダー: 大きなトレーナーカードタイル風 */}
