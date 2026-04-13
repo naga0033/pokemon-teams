@@ -119,7 +119,7 @@ export const ABILITY_NAMES_JA: Record<string, string> = {
   "mirror-armor": "ミラーアーマー",
   "misty-surge": "ミストメイカー",
   "mold-breaker": "かたやぶり",
-  "moody": "きまぐれ",
+  "moody": "むらっけ",
   "motor-drive": "でんきエンジン",
   "moxie": "じしんかじょう",
   "multiscale": "マルチスケイル",
