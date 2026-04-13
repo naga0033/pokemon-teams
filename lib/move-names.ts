@@ -614,7 +614,7 @@ export const MOVE_NAMES_JA: Record<string, string> = {
   "power-up-punch": "パワーアップパンチ",
 
   // でんき追加
-  "electroweb": "でんじネット",
+  "electroweb": "エレキネット",
   "fusion-bolt": "クロスサンダー",
   "bolt-strike": "らいげき",
 
