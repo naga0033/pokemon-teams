@@ -426,8 +426,17 @@ function normalizePokemonRecord(input: unknown): Record<string, unknown> {
     "かくとう", "どく", "じめん", "ひこう", "エスパー", "むし",
     "いわ", "ゴースト", "ドラゴン", "あく", "はがね", "フェアリー", "ステラ",
   ];
+  // テラスタイプ: 「なし」や空欄はそもそもまだ未実装の機能なので「要確認」にしない
   if (typeof p.teraType === "string" && p.teraType.trim()) {
-    confidence.teraType = TERA_TYPES.includes(p.teraType.trim()) ? "exact" : "unmatched";
+    const t = p.teraType.trim();
+    if (t === "なし" || t === "ステラ未指定") {
+      confidence.teraType = "exact";
+    } else {
+      confidence.teraType = TERA_TYPES.includes(t) ? "exact" : "unmatched";
+    }
+  } else {
+    // テラス未設定 = 現状デフォルトなので exact 扱い
+    confidence.teraType = "exact";
   }
 
   // フィールドを混同するため、全候補を集めて正しいカテゴリに振り分ける
