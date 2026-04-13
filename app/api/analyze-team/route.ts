@@ -76,6 +76,19 @@ ${MASTER_DATA_BLOCK}
 ⚠ 重要: 特性は必ず左半分に1つだけ、技は必ず右半分に4つあります。
        右半分の項目は全て「技」、左半分の項目を技として扱わないでください。
 
+⚠ 技の順序を絶対に守ること:
+- moves 配列は必ず「右半分の上から下の順」で返してください
+- moves[0] = 右半分の最上段の技
+- moves[1] = 右半分の上から2番目の技
+- moves[2] = 右半分の上から3番目の技
+- moves[3] = 右半分の最下段の技
+
+⚠ 読めない技は詰めず、その位置に null を入れること:
+例えば3番目の技だけ読めない場合は ["技1", "技2", null, "技4"] のように
+null を埋めて4要素を返してください。読めなかった技を詰めて短い配列で返すと、
+後段の処理がどの技スロットが空かを判断できません。
+読めない場合は推測せず必ず null を入れてください。
+
 入力画像を見て、スロット 1〜6 の情報を抽出し、以下の JSON 形式で返してください。
 余計な説明・前置き・マークダウンコードブロックは一切含めず、純粋な JSON のみを返してください。
 
@@ -97,7 +110,7 @@ ${MASTER_DATA_BLOCK}
 }
 
 - 必ず 6 体分返してください (認識できなかった場合は該当フィールドを null または空文字に)
-- 技が 4 つ揃わない場合は読めた分だけ配列に入れてください
+- 技が 4 つ揃わない場合でも、必ず4要素の配列を返してください。読めない位置には null を入れてスロット位置を保ってください (詰めずに返す)
 - 日本語名は公式表記に揃えてください (カタカナ)
 
 ⚠ よくある誤認識に注意:
@@ -157,7 +170,7 @@ ${MASTER_DATA_BLOCK}
 
 - この画像は1体分だけです。6体分の配列は返さないでください
 - 読めない項目は null または空配列にしてください
-- 技が 4 つ揃わない場合は読めた分だけ配列に入れてください
+- 技が 4 つ揃わない場合でも、必ず4要素の配列を返してください。読めない位置には null を入れてスロット位置を保ってください (詰めずに返す)
 - 日本語名は公式表記に揃えてください (カタカナ)
 - 不確かな場合は推測で埋めずに null を優先してください
 
@@ -312,6 +325,8 @@ const ABILITY_MOVE_CONFLICTS: Array<{ ability: string; suspiciousMove: string }>
   { ability: "すなおこし",   suspiciousMove: "かぜおこし" },     // カバルドン
   { ability: "げきりゅう",   suspiciousMove: "だくりゅう" },     // アシレーヌ等水御三家
   { ability: "じきゅうりょく", suspiciousMove: "じゅうりょく" },  // ブリジュラス
+  { ability: "しんりょく",   suspiciousMove: "しんそく" },       // メガニウム等草御三家
+  { ability: "メロメロボディ", suspiciousMove: "メロメロ" },     // ミミロップ
 ];
 const ITEM_OCR_CORRECTIONS: Record<string, string> = {
   // 今後見つけ次第追加していく
@@ -376,9 +391,13 @@ function normalizePokemonRecord(input: unknown): Record<string, unknown> {
 
   const rawAbility = typeof p.ability === "string" ? p.ability.trim() : "";
   const rawItem = typeof p.item === "string" ? p.item.trim() : "";
-  const rawMoves = Array.isArray(p.moves)
-    ? p.moves.filter((m): m is string => typeof m === "string").map((m) => m.trim()).filter(Boolean)
+  // ⚠ 位置を保持するため null/空文字をフィルタしない (どのスロットが空欄かを後段で判別するため)
+  const rawMovesPositional: Array<string | null> = Array.isArray(p.moves)
+    ? p.moves.slice(0, 4).map((m) => (typeof m === "string" && m.trim() ? m.trim() : null))
     : [];
+  while (rawMovesPositional.length < 4) rawMovesPositional.push(null);
+  // 特性/持ち物カテゴライズ用には非空の値だけ集める
+  const rawMoves = rawMovesPositional.filter((m): m is string => Boolean(m));
   const rawCandidates = [rawAbility, rawItem, ...rawMoves].filter(Boolean);
 
   // ポケモン名の名寄せ + 信頼度
@@ -432,7 +451,7 @@ function normalizePokemonRecord(input: unknown): Record<string, unknown> {
   confidence.item = itemResult?.confidence ?? "unmatched";
   if (itemResult?.value) used.add(itemResult.value);
 
-  // 3. 技を探す（特性・持ち物で使った値を除外、OCR誤読補正を適用）
+  // 3. 技を探す。スロット位置を保持しながら各位置を独立に判定する
   // 特性が判明していたら、それと混同される技 (例: ふゆう→でんじふゆう) を弾く
   const conflictMoves = new Set<string>();
   if (out.ability && typeof out.ability === "string") {
@@ -441,9 +460,9 @@ function normalizePokemonRecord(input: unknown): Record<string, unknown> {
       if (conflict.ability === ab) conflictMoves.add(conflict.suspiciousMove);
     }
   }
-  const movesResult = pickCategorizedMovesWithConfidence(allValues, used, 4, conflictMoves);
-  out.moves = movesResult.map((r) => r.value);
-  confidence.moves = movesResult.map((r) => r.confidence);
+  const moveResults = resolveMovesByPosition(rawMovesPositional, used, conflictMoves);
+  out.moves = moveResults.map((r) => r?.value ?? "");
+  confidence.moves = moveResults.map((r) => r?.confidence ?? "unmatched");
 
   out.confidence = confidence;
   return out;
@@ -468,37 +487,58 @@ function pickBestCategorizedValueWithConfidence(
   return null;
 }
 
-function pickCategorizedMovesWithConfidence(
-  candidates: string[],
+/**
+ * スロット位置を保持しながら、各位置の技を独立して辞書マッチする。
+ * - null/空文字の位置はそのまま null を返す (詰めない)
+ * - 既に特性/持ち物として使われた値、ブロックリスト、特性別の誤認技は弾いて null
+ * - 各位置を完全一致 → ファジーマッチで判定
+ */
+function resolveMovesByPosition(
+  positions: Array<string | null>,
   reserved: Set<string>,
-  limit: number,
-  conflictMoves: Set<string> = new Set(),
-): MatchResult[] {
-  const moves: MatchResult[] = [];
+  conflictMoves: Set<string>,
+): Array<MatchResult | null> {
+  const result: Array<MatchResult | null> = [];
+  const usedHere = new Set<string>(); // 同じ技を2回入れない
 
-  for (const rawCandidate of candidates) {
-    if (!rawCandidate) continue;
-    // OCR誤読補正があれば適用してから判定
-    const candidate = MOVE_OCR_CORRECTIONS[rawCandidate] ?? rawCandidate;
-    // BLOCKLIST と特性別の誤認技は誤認の温床なのでスキップ
-    if (MOVE_BLOCKLIST.has(candidate) || conflictMoves.has(candidate)) continue;
-    if (MOVE_JA_LIST.includes(candidate)) {
-      if (reserved.has(candidate)) continue;
-      if (moves.some((m) => m.value === candidate)) continue;
-      moves.push({ value: candidate, confidence: "exact" });
-    } else {
-      const fuzzy = findBestJaMatch(candidate, MOVE_JA_LIST, { maxDistance: 2 });
-      if (!fuzzy) continue;
-      if (MOVE_BLOCKLIST.has(fuzzy) || conflictMoves.has(fuzzy)) continue;
-      if (reserved.has(fuzzy)) continue;
-      if (moves.some((m) => m.value === fuzzy)) continue;
-      moves.push({ value: fuzzy, confidence: "fuzzy" });
+  for (const raw of positions) {
+    if (!raw) {
+      result.push(null);
+      continue;
     }
-    if (moves.length >= limit) break;
+    // OCR補正適用
+    const candidate = MOVE_OCR_CORRECTIONS[raw] ?? raw;
+    if (MOVE_BLOCKLIST.has(candidate) || conflictMoves.has(candidate)) {
+      result.push(null);
+      continue;
+    }
+    if (MOVE_JA_LIST.includes(candidate)) {
+      if (reserved.has(candidate) || usedHere.has(candidate)) {
+        result.push(null);
+        continue;
+      }
+      usedHere.add(candidate);
+      result.push({ value: candidate, confidence: "exact" });
+      continue;
+    }
+    const fuzzy = findBestJaMatch(candidate, MOVE_JA_LIST, { maxDistance: 2 });
+    if (!fuzzy || MOVE_BLOCKLIST.has(fuzzy) || conflictMoves.has(fuzzy)) {
+      result.push(null);
+      continue;
+    }
+    if (reserved.has(fuzzy) || usedHere.has(fuzzy)) {
+      result.push(null);
+      continue;
+    }
+    usedHere.add(fuzzy);
+    result.push({ value: fuzzy, confidence: "fuzzy" });
   }
-
-  return moves;
+  // 必ず4要素にする
+  while (result.length < 4) result.push(null);
+  return result.slice(0, 4);
 }
+
+// pickCategorizedMovesWithConfidence は resolveMovesByPosition に置き換え済み (位置保持版)
 
 /** MIME type 正規化 (Claude API が受け付ける形に) */
 function normalizeMediaType(
