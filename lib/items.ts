@@ -160,6 +160,7 @@ export const ITEMS: ItemEntry[] = [
   { slug: "floettite",        ja: "フラエッテナイト",     effect: "mega-stone", flingPower: 80 },
   { slug: "hawluchite",       ja: "ルチャブルナイト",     effect: "mega-stone", flingPower: 80 },
   { slug: "glimmoritite",     ja: "キラフロルナイト",     effect: "mega-stone", flingPower: 80 },
+  { slug: "scovillainite",    ja: "スコヴィラナイト",     effect: "mega-stone", flingPower: 80 },
 ];
 
 export const ITEM_MAP: Record<string, ItemEntry> = Object.fromEntries(
