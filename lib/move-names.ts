@@ -1022,6 +1022,7 @@ export const MOVE_NAMES_JA: Record<string, string> = {
   // ポケモンチャンピオンズ の新技 (公式英語slug が未確定のため暫定)
   "hayate-gaeshi": "はやてがえし",
   "shaka-shaka-cannon": "シャカシャカほう",
+  "flower-cheer": "フラワーエール",
 };
 
 /** 技のslugから日本語名を取得（なければslugをそのまま返す） */
