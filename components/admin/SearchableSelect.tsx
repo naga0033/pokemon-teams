@@ -70,16 +70,31 @@ export function SearchableSelect({ value, onChange, options, placeholder, classN
       } else if (e.key === "ArrowUp") {
         setActiveIndex((i) => Math.max(i - 1, 0));
         e.preventDefault();
-      } else if (e.key === "Enter" && activeIndex >= 0) {
-        handleSelect(filtered[activeIndex]);
+      } else if (e.key === "Enter") {
+        // 候補ハイライト中はそれを選択、なければ入力テキストをそのまま保存
+        if (activeIndex >= 0 && filtered[activeIndex]) {
+          handleSelect(filtered[activeIndex]);
+        } else if (query.trim()) {
+          handleSelect(query.trim());
+        }
         e.preventDefault();
       } else if (e.key === "Escape") {
         setOpen(false);
         setActiveIndex(-1);
       }
     },
-    [open, filtered, activeIndex, handleSelect],
+    [open, filtered, activeIndex, handleSelect, query],
   );
+
+  // blur 時に query が入力されていたらそれを保存 (自由入力対応)
+  const handleBlur = useCallback(() => {
+    if (query.trim() && query.trim() !== value) {
+      handleSelect(query.trim());
+    } else {
+      setOpen(false);
+      setActiveIndex(-1);
+    }
+  }, [query, value, handleSelect]);
 
   return (
     <div ref={wrapperRef} className="relative">
@@ -95,6 +110,10 @@ export function SearchableSelect({ value, onChange, options, placeholder, classN
         onFocus={() => {
           setOpen(true);
           setQuery("");
+        }}
+        onBlur={() => {
+          // クリック選択より後に動かす (150ms)
+          setTimeout(handleBlur, 150);
         }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}

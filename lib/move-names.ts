@@ -102,6 +102,7 @@ export const MOVE_NAMES_JA: Record<string, string> = {
   "terrain-pulse": "フィールドのちから",
 
   // ほのお
+  "jealous-flames": "しっとのほのお",
   "ember": "ひのこ",
   "flamethrower": "かえんほうしゃ",
   "fire-blast": "だいもんじ",
