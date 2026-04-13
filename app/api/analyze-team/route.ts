@@ -100,7 +100,9 @@ ${MASTER_DATA_BLOCK}
   （プロテクトアイコン：緑色の盾マーク）
 - 特性の「いかく」(Intimidate) と 技/特性の「いかり〜」系(いかりのまえば/いかりのつぼ 等) は
   別物です。「く」と「り」を絶対に取り違えないでください。
-  カバルドン・ランドロス・ガオガエン・ウインディなどは特性「いかく」がほぼ確定です。`;
+  カバルドン・ランドロス・ガオガエン・ウインディなどは特性「いかく」がほぼ確定です。
+  ★重要★ 「いかり」単体という特性はゲームに存在しません。3文字で「いか?」と読めたら必ず「いかく」です。
+          「いかり〜」で始まる場合は必ず「いかりのつぼ」「いかりのこうら」「いかりのまえば」のいずれかです。`;
 
 function getSingleSlotPrompt(slot: number) {
   return `あなたはポケモンチャンピオンズ (ポケチャン) の「チーム能力確認画面」から切り出された、1体分だけのパネル画像を解析するアシスタントです。
@@ -128,7 +130,8 @@ ${MASTER_DATA_BLOCK}
 ⚠ よくある誤認識に注意:
 - 技の「まもる」(全ひらがな3文字、緑盾アイコン) は頻出。4つ目の技が読めない時はまず「まもる」を疑ってください
 - 特性「いかく」(Intimidate) を「いかり」と読み違えないでください。「く」と「り」は別の文字です。
-  カバルドン・ランドロス・ガオガエン・ウインディなどは「いかく」がほぼ確定です。`;
+  カバルドン・ランドロス・ガオガエン・ウインディなどは「いかく」がほぼ確定です。
+  ★重要★ 「いかり」単体という特性はゲームに存在しません。3文字で「いか?」と読めたら必ず「いかく」です。`;
 }
 
 type RequestBody = {
@@ -250,6 +253,18 @@ export async function POST(req: Request) {
   });
 }
 
+// Vision OCR が頻繁に犯す誤認識の補正表 (カテゴリ別)
+// Sonnet がここに登録された文字列を出してきたら、問答無用で正しい語に置き換える
+const ABILITY_OCR_CORRECTIONS: Record<string, string> = {
+  いかり: "いかく", // Intimidate の頻出誤読 (「く」と「り」の取り違え)
+};
+const MOVE_OCR_CORRECTIONS: Record<string, string> = {
+  // 今後見つけ次第追加していく
+};
+const ITEM_OCR_CORRECTIONS: Record<string, string> = {
+  // 今後見つけ次第追加していく
+};
+
 // 信頼度レベル: exact=完全一致, fuzzy=ファジーマッチ, unmatched=辞書に該当なし
 type Confidence = "exact" | "fuzzy" | "unmatched";
 
@@ -348,20 +363,24 @@ function normalizePokemonRecord(input: unknown): Record<string, unknown> {
   const allValues = rawCandidates;
   const used = new Set<string>();
 
-  // 1. 特性を探す（全候補から）
-  const abilityResult = pickBestCategorizedValueWithConfidence(allValues, ABILITY_JA_LIST, 1);
+  // 1. 特性を探す（全候補から、OCR誤読補正を適用）
+  const abilityResult = pickBestCategorizedValueWithConfidence(
+    allValues, ABILITY_JA_LIST, 1, ABILITY_OCR_CORRECTIONS,
+  );
   out.ability = abilityResult?.value ?? null;
   confidence.ability = abilityResult?.confidence ?? "unmatched";
   if (abilityResult?.value) used.add(abilityResult.value);
 
-  // 2. 持ち物を探す（特性で使った値を除外）
+  // 2. 持ち物を探す（特性で使った値を除外、OCR誤読補正を適用）
   const itemCandidates = allValues.filter((v) => !used.has(v));
-  const itemResult = pickBestCategorizedValueWithConfidence(itemCandidates, ITEM_JA_LIST, 1);
+  const itemResult = pickBestCategorizedValueWithConfidence(
+    itemCandidates, ITEM_JA_LIST, 1, ITEM_OCR_CORRECTIONS,
+  );
   out.item = itemResult?.value ?? null;
   confidence.item = itemResult?.confidence ?? "unmatched";
   if (itemResult?.value) used.add(itemResult.value);
 
-  // 3. 技を探す（特性・持ち物で使った値を除外）
+  // 3. 技を探す（特性・持ち物で使った値を除外、OCR誤読補正を適用）
   const movesResult = pickCategorizedMovesWithConfidence(allValues, used, 4);
   out.moves = movesResult.map((r) => r.value);
   confidence.moves = movesResult.map((r) => r.confidence);
@@ -376,9 +395,12 @@ function pickBestCategorizedValueWithConfidence(
   candidates: string[],
   dictionary: string[],
   maxDistance: number,
+  corrections: Record<string, string> = {},
 ): MatchResult | null {
-  for (const candidate of candidates) {
-    if (!candidate) continue;
+  for (const rawCandidate of candidates) {
+    if (!rawCandidate) continue;
+    // 既知の OCR 誤読は最初に問答無用で置き換える (その結果が辞書にあれば exact 扱い)
+    const candidate = corrections[rawCandidate] ?? rawCandidate;
     if (dictionary.includes(candidate)) return { value: candidate, confidence: "exact" };
     const fuzzy = findBestJaMatch(candidate, dictionary, { maxDistance });
     if (fuzzy) return { value: fuzzy, confidence: "fuzzy" };
