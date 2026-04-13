@@ -5,7 +5,6 @@ import { TrainerCard } from "@/components/TrainerCard";
 import { DUMMY_TEAMS } from "@/lib/dummy-teams";
 import { loadSavedTeams } from "@/lib/saved-teams";
 import { getUsageSuggestNames } from "@/lib/usage-ranking";
-import { isAdminSession } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic"; // 保存データ反映のため毎回読み込み
 
@@ -17,7 +16,6 @@ export default async function HomePage() {
   const allTeams = [...savedTeams, ...DUMMY_TEAMS];
   const latest = allTeams.slice(0, 6);
   const suggestions = getUsageSuggestNames("single", [], 8);
-  const isAdmin = await isAdminSession();
 
   return (
     <div className="space-y-14">
@@ -27,24 +25,6 @@ export default async function HomePage() {
         suggestions={suggestions}
         sticky={false}
       />
-
-      {/* 管理者のみ: 取り込みページへのショートカット */}
-      {isAdmin && (
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Link
-            href="/admin/ingest"
-            className="rounded-full bg-cyan-500 px-5 py-2 text-xs font-bold text-white shadow hover:bg-cyan-600"
-          >
-            ＋ 構築を取り込む
-          </Link>
-          <Link
-            href="/admin/teams"
-            className="rounded-full border border-slate-200 bg-white px-5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
-          >
-            構築一覧を編集
-          </Link>
-        </div>
-      )}
 
       {/* ---- 新着カード ---- */}
       <section>

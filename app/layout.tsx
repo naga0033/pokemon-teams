@@ -3,7 +3,7 @@ import Script from "next/script";
 import Image from "next/image";
 import Link from "next/link";
 import { Noto_Sans_JP, Orbitron } from "next/font/google";
-// admin-auth は admin layout で使用
+import { isAdminSession } from "@/lib/admin-auth";
 import "./globals.css";
 
 const GA_ID = "G-Y2608K2MZP";
@@ -27,6 +27,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const isAdmin = await isAdminSession();
 
   return (
     <html lang="ja">
@@ -39,7 +40,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className={`${bodyFont.variable} ${displayFont.variable} min-h-screen font-sans antialiased`}>
         {/* ヘッダー */}
         <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-5 py-4">
             <Link href="/" className="group flex items-center gap-4">
               <Image
                 src="/pokemon-champions-logo.webp"
@@ -54,6 +55,23 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <span className="ml-1 text-cyan-600">構築コレクション</span>
               </span>
             </Link>
+            {/* 管理者のみ: ヘッダー右側にショートカット */}
+            {isAdmin && (
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/admin/ingest"
+                  className="rounded-full bg-cyan-500 px-4 py-1.5 text-[11px] font-bold text-white shadow hover:bg-cyan-600"
+                >
+                  ＋ 取り込む
+                </Link>
+                <Link
+                  href="/admin/teams"
+                  className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  一覧編集
+                </Link>
+              </div>
+            )}
           </div>
         </header>
 
