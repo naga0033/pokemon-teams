@@ -279,7 +279,7 @@ export const ABILITY_NAMES_JA: Record<string, string> = {
   "supersweet-syrup": "かんろなミツ",
   "toxic-debris": "どくげしょう",
   "toxic-chain": "どくのくさり",
-  "armor-tail": "よろいのしっぽ",
+  "armor-tail": "テイルアーマー",
   "earth-eater": "だいちぐい",
   "sharpness": "きれあじ",
   "electromorphosis": "じゅうでんたい",
