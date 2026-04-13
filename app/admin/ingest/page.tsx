@@ -173,7 +173,8 @@ export default function IngestPage() {
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [saveFormat, setSaveFormat] = useState<"single" | "double">("single");
-  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  const [savedTeamId, setSavedTeamId] = useState<string | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   const updatePokemon = useCallback(
     (slot: number, updater: (pokemon: ParsedPokemon) => ParsedPokemon) => {
@@ -686,11 +687,12 @@ export default function IngestPage() {
             </div>
             <button
               type="button"
-              disabled={stage === "saving" || !!saveSuccess}
+              disabled={stage === "saving" || !!savedTeamId}
               onClick={async () => {
                 if (!parsed || !tweetData) return;
                 setStage("saving");
-                setSaveSuccess(null);
+                setSavedTeamId(null);
+                setCopyFeedback(null);
                 try {
                   const res = await fetch("/api/teams/save", {
                     method: "POST",
@@ -705,7 +707,7 @@ export default function IngestPage() {
                   });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data?.error ?? "保存失敗");
-                  setSaveSuccess(`✅ 登録しました！ (ID: ${data.id})`);
+                  setSavedTeamId(data.id as string);
                 } catch (err) {
                   setError(err instanceof Error ? err.message : "保存に失敗しました");
                 } finally {
@@ -713,14 +715,23 @@ export default function IngestPage() {
                 }
               }}
               className={
-                saveSuccess
+                savedTeamId
                   ? "rounded-full bg-emerald-100 px-8 py-3 text-sm font-bold text-emerald-700"
                   : "btn-neon rounded-full px-8 py-3 text-sm disabled:opacity-60"
               }
             >
-              {stage === "saving" ? "保存中…" : saveSuccess ? saveSuccess : "🚀 登録して公開"}
+              {stage === "saving" ? "保存中…" : savedTeamId ? "✅ 登録完了" : "🚀 登録して公開"}
             </button>
           </div>
+
+          {/* 登録完了後: 構築ページの URL を表示してコピー & プレビュー */}
+          {savedTeamId && (
+            <SavedTeamLink
+              teamId={savedTeamId}
+              copyFeedback={copyFeedback}
+              onCopyFeedback={setCopyFeedback}
+            />
+          )}
         </section>
       )}
 
@@ -1015,6 +1026,66 @@ function NaturePalette({ value, onChange }: { value: string | null; onChange: (v
           })}
         </div>
       ))}
+    </div>
+  );
+}
+
+// 登録完了後に構築ページ URL を表示し、コピー/プレビューできるようにする
+function SavedTeamLink({
+  teamId,
+  copyFeedback,
+  onCopyFeedback,
+}: {
+  teamId: string;
+  copyFeedback: string | null;
+  onCopyFeedback: (msg: string | null) => void;
+}) {
+  // ブラウザ側で絶対URLを組み立て (SSR 時は window が無いので空文字)
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const teamUrl = `${origin}/teams/${encodeURIComponent(teamId)}`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(teamUrl);
+      onCopyFeedback("✅ コピーしました");
+      setTimeout(() => onCopyFeedback(null), 2000);
+    } catch {
+      onCopyFeedback("❌ コピーに失敗しました");
+    }
+  };
+
+  return (
+    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+      <p className="text-[11px] font-bold tracking-wider text-emerald-700">
+        🎉 構築ページが公開されました
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <input
+          type="text"
+          value={teamUrl}
+          readOnly
+          onFocus={(e) => e.currentTarget.select()}
+          className="flex-1 min-w-[240px] rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-mono text-slate-700 outline-none"
+        />
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow hover:bg-emerald-600"
+        >
+          📋 URLをコピー
+        </button>
+        <a
+          href={teamUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-full border border-emerald-300 bg-white px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+        >
+          👀 ページを開く
+        </a>
+      </div>
+      {copyFeedback && (
+        <p className="mt-2 text-[11px] font-bold text-emerald-700">{copyFeedback}</p>
+      )}
     </div>
   );
 }
