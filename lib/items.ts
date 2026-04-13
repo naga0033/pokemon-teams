@@ -161,6 +161,26 @@ export const ITEMS: ItemEntry[] = [
   { slug: "hawluchite",       ja: "ルチャブルナイト",     effect: "mega-stone", flingPower: 80 },
   { slug: "glimmoritite",     ja: "キラフロルナイト",     effect: "mega-stone", flingPower: 80 },
   { slug: "scovillainite",    ja: "スコヴィラナイト",     effect: "mega-stone", flingPower: 80 },
+  { slug: "crabominite",      ja: "ケケンカニナイト",     effect: "mega-stone", flingPower: 80 },
+  // mega-data.ts からの漏れを補完 (2026-04 一括追加)
+  { slug: "absolite-z",       ja: "アブソルナイトZ",      effect: "mega-stone", flingPower: 80 },
+  { slug: "barbaraclite",     ja: "ガメノデスナイト",     effect: "mega-stone", flingPower: 80 },
+  { slug: "chimechite",       ja: "チリーンナイト",       effect: "mega-stone", flingPower: 80 },
+  { slug: "eelektrossite",    ja: "シビルドンナイト",     effect: "mega-stone", flingPower: 80 },
+  { slug: "falinksite",       ja: "タイレーツナイト",     effect: "mega-stone", flingPower: 80 },
+  { slug: "garchompite-z",    ja: "ガブリアスナイトZ",    effect: "mega-stone", flingPower: 80 },
+  { slug: "golisopodite",     ja: "グソクムシャナイト",   effect: "mega-stone", flingPower: 80 },
+  { slug: "golurkite",        ja: "ゴルーグナイト",       effect: "mega-stone", flingPower: 80 },
+  { slug: "lucarionite-z",    ja: "ルカリオナイトZ",      effect: "mega-stone", flingPower: 80 },
+  { slug: "magearnite",       ja: "マギアナナイト",       effect: "mega-stone", flingPower: 80 },
+  { slug: "meowsticite",      ja: "ニャオニクスナイト",   effect: "mega-stone", flingPower: 80 },
+  { slug: "pyroarite",        ja: "カエンジシナイト",     effect: "mega-stone", flingPower: 80 },
+  { slug: "scolipedite",      ja: "ペンドラーナイト",     effect: "mega-stone", flingPower: 80 },
+  { slug: "scraftite",        ja: "ズルズキンナイト",     effect: "mega-stone", flingPower: 80 },
+  { slug: "staraptornite",    ja: "ムクホークナイト",     effect: "mega-stone", flingPower: 80 },
+  { slug: "tatsugirite",      ja: "シャリタツナイト",     effect: "mega-stone", flingPower: 80 },
+  { slug: "zeraoranite",      ja: "ゼラオラナイト",       effect: "mega-stone", flingPower: 80 },
+  { slug: "zygardite",        ja: "ジガルデナイト",       effect: "mega-stone", flingPower: 80 },
 ];
 
 export const ITEM_MAP: Record<string, ItemEntry> = Object.fromEntries(
