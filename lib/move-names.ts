@@ -27,7 +27,7 @@ export const MOVE_NAMES_JA: Record<string, string> = {
   "hidden-power": "めざめるパワー",
   "weather-ball": "ウェザーボール",
   "trump-card": "きりふだ",
-  "round": "ラウンド",
+  "round": "りんしょう",
   "echoed-voice": "こだまするこえ",
   "hyper-voice": "ハイパーボイス",
   "snore": "いびき",
