@@ -663,7 +663,7 @@ export const MOVE_NAMES_JA: Record<string, string> = {
 
   // Gen9 / 競技環境で使われる技（完全日本語化）
   "tera-blast": "テラバースト",
-  "dragon-cheer": "りゅうのエール",
+  "dragon-cheer": "ドラゴンエール",
   "heat-crash": "ヒートスタンプ",
   "scary-face": "こわいかお",
   "rock-smash": "いわくだき",
@@ -1022,7 +1022,6 @@ export const MOVE_NAMES_JA: Record<string, string> = {
   // ポケモンチャンピオンズ の新技 (公式英語slug が未確定のため暫定)
   "hayate-gaeshi": "はやてがえし",
   "shaka-shaka-cannon": "シャカシャカほう",
-  "dragon-cheer": "ドラゴンエール",
 };
 
 /** 技のslugから日本語名を取得（なければslugをそのまま返す） */
