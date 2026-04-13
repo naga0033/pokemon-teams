@@ -117,6 +117,9 @@ ${MASTER_DATA_BLOCK}
 - 「じゅうりょく」(技 = Gravity) と 「じきゅうりょく」(特性 = Stamina) は別物。
   ブリジュラスの特性は「じきゅうりょく」ですが、技に「じゅうりょく」が入ることもあります。
   → 必ず "左半分=特性 / 右半分=技" のレイアウトで判断してください。
+- 「いかり」(技 Rage) は競技でほぼ使われません。技として「いかり」と読めたら、
+  特性「いかく」「いかりのつぼ」「いかりのこうら」のいずれかを技と取り違えている可能性が極めて高いので、
+  慎重に判定し直してください(特性は左半分、技は右半分にあります)。
 - 「げきりゅう」(特性 = Torrent / 水ポケモンの定番特性) と 「だくりゅう」(技 = Muddy Water) は別物。
   アシレーヌ・カメックスなど水御三家の特性は「げきりゅう」が頻出ですが、
   「だくりゅう」を技として勝手に追加してはいけません。技は必ず画面右半分に表示されたものだけを返してください。
@@ -284,6 +287,10 @@ const ABILITY_OCR_CORRECTIONS: Record<string, string> = {
 const MOVE_OCR_CORRECTIONS: Record<string, string> = {
   // 今後見つけ次第追加していく
 };
+// 技として返ってきても辞書マッチさせず捨てる単語 (誤認の元になるレア技)
+const MOVE_BLOCKLIST = new Set<string>([
+  "いかり", // 技 Rage はほぼ使われず、特性「いかく」等の誤読の温床
+]);
 const ITEM_OCR_CORRECTIONS: Record<string, string> = {
   // 今後見つけ次第追加していく
 };
@@ -438,8 +445,12 @@ function pickCategorizedMovesWithConfidence(
 ): MatchResult[] {
   const moves: MatchResult[] = [];
 
-  for (const candidate of candidates) {
-    if (!candidate) continue;
+  for (const rawCandidate of candidates) {
+    if (!rawCandidate) continue;
+    // OCR誤読補正があれば適用してから判定
+    const candidate = MOVE_OCR_CORRECTIONS[rawCandidate] ?? rawCandidate;
+    // BLOCKLIST に該当する技は誤認の温床なのでスキップ
+    if (MOVE_BLOCKLIST.has(candidate)) continue;
     if (MOVE_JA_LIST.includes(candidate)) {
       if (reserved.has(candidate)) continue;
       if (moves.some((m) => m.value === candidate)) continue;
@@ -447,6 +458,7 @@ function pickCategorizedMovesWithConfidence(
     } else {
       const fuzzy = findBestJaMatch(candidate, MOVE_JA_LIST, { maxDistance: 2 });
       if (!fuzzy) continue;
+      if (MOVE_BLOCKLIST.has(fuzzy)) continue;
       if (reserved.has(fuzzy)) continue;
       if (moves.some((m) => m.value === fuzzy)) continue;
       moves.push({ value: fuzzy, confidence: "fuzzy" });

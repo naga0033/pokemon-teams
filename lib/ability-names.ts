@@ -105,7 +105,7 @@ export const ABILITY_NAMES_JA: Record<string, string> = {
   "lightning-rod": "ひらいしん",
   "limber": "じゅうなん",
   "liquid-ooze": "ヘドロえき",
-  "liquid-voice": "うるおいごえ",
+  "liquid-voice": "うるおいボイス",
   "long-reach": "ロングレンチ",
   "magic-bounce": "マジックミラー",
   "magic-guard": "マジックガード",
