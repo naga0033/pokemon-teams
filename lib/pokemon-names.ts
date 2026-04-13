@@ -543,7 +543,7 @@ export const EN_TO_JA: Record<string, string> = {
   orthworm: "ミミズズ",
   glimmet: "タギングル", glimmora: "キラフロル",
   greavard: "ガラルユキカブリ", houndstone: "ハカドッグ",
-  flamigo: "クエスパトラ",
+  flamigo: "カラミンゴ",
   cetoddle: "オタクジラ", cetitan: "ハルクジラ",
   veluza: "ミガルーサ", dondozo: "ヘイラッシャ",
   tatsugiri: "タツギリ",
