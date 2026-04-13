@@ -128,7 +128,15 @@ ${MASTER_DATA_BLOCK}
 
 ⚠ 推測で技を埋めない:
 画面に4つの技が見える場合のみ4つ返してください。3つしか読めなければ3つだけ返してください。
-"このポケモンならこの技を持っているはず" という推測で技を埋めるのは絶対禁止です。`;
+"このポケモンならこの技を持っているはず" という推測で技を埋めるのは絶対禁止です。
+
+⚠ 「特性が技1にコピーされる」誤認パターンに特に注意:
+以下は実際によくある誤認です。特性とよく似た名前の技があるからといって、必ずしもその技を持っているとは限りません。
+左半分の特性をそのまま技1に書き写すような出力は厳禁です。
+- 特性「ふゆう」のポケモン(ロトム/サザンドラ等) → 技1に「でんじふゆう」を入れがちですが誤りです
+- 特性「すなおこし」のカバルドン → 技1に「かぜおこし」を入れがちですが誤りです
+- 特性「げきりゅう」のアシレーヌ等 → 技1に「だくりゅう」を入れがちですが誤りです
+- 特性「じきゅうりょく」のブリジュラス → 技1に「じゅうりょく」を入れがちですが誤りです`;
 
 function getSingleSlotPrompt(slot: number) {
   return `あなたはポケモンチャンピオンズ (ポケチャン) の「チーム能力確認画面」から切り出された、1体分だけのパネル画像を解析するアシスタントです。
@@ -295,6 +303,16 @@ const MOVE_BLOCKLIST = new Set<string>([
   "３ぼんのや", // ヒスイジュナイパー専用。スロット番号「3」+盾アイコンを誤認するため除外
   "3ぼんのや",  // 半角バリアントも念のため
 ]);
+
+// 「特性が技1へ漏れる」誤認パターン (ユーザー報告から構築)
+// その特性のポケモンの場合、その技は誤認とみなして除外する。
+// (これらの技は単独でも実在するが、その特性とセットで出てきた場合はほぼ100%誤認)
+const ABILITY_MOVE_CONFLICTS: Array<{ ability: string; suspiciousMove: string }> = [
+  { ability: "ふゆう",       suspiciousMove: "でんじふゆう" },   // ロトム/サザンドラ等
+  { ability: "すなおこし",   suspiciousMove: "かぜおこし" },     // カバルドン
+  { ability: "げきりゅう",   suspiciousMove: "だくりゅう" },     // アシレーヌ等水御三家
+  { ability: "じきゅうりょく", suspiciousMove: "じゅうりょく" },  // ブリジュラス
+];
 const ITEM_OCR_CORRECTIONS: Record<string, string> = {
   // 今後見つけ次第追加していく
 };
@@ -415,7 +433,15 @@ function normalizePokemonRecord(input: unknown): Record<string, unknown> {
   if (itemResult?.value) used.add(itemResult.value);
 
   // 3. 技を探す（特性・持ち物で使った値を除外、OCR誤読補正を適用）
-  const movesResult = pickCategorizedMovesWithConfidence(allValues, used, 4);
+  // 特性が判明していたら、それと混同される技 (例: ふゆう→でんじふゆう) を弾く
+  const conflictMoves = new Set<string>();
+  if (out.ability && typeof out.ability === "string") {
+    const ab = out.ability;
+    for (const conflict of ABILITY_MOVE_CONFLICTS) {
+      if (conflict.ability === ab) conflictMoves.add(conflict.suspiciousMove);
+    }
+  }
+  const movesResult = pickCategorizedMovesWithConfidence(allValues, used, 4, conflictMoves);
   out.moves = movesResult.map((r) => r.value);
   confidence.moves = movesResult.map((r) => r.confidence);
 
@@ -446,6 +472,7 @@ function pickCategorizedMovesWithConfidence(
   candidates: string[],
   reserved: Set<string>,
   limit: number,
+  conflictMoves: Set<string> = new Set(),
 ): MatchResult[] {
   const moves: MatchResult[] = [];
 
@@ -453,8 +480,8 @@ function pickCategorizedMovesWithConfidence(
     if (!rawCandidate) continue;
     // OCR誤読補正があれば適用してから判定
     const candidate = MOVE_OCR_CORRECTIONS[rawCandidate] ?? rawCandidate;
-    // BLOCKLIST に該当する技は誤認の温床なのでスキップ
-    if (MOVE_BLOCKLIST.has(candidate)) continue;
+    // BLOCKLIST と特性別の誤認技は誤認の温床なのでスキップ
+    if (MOVE_BLOCKLIST.has(candidate) || conflictMoves.has(candidate)) continue;
     if (MOVE_JA_LIST.includes(candidate)) {
       if (reserved.has(candidate)) continue;
       if (moves.some((m) => m.value === candidate)) continue;
@@ -462,7 +489,7 @@ function pickCategorizedMovesWithConfidence(
     } else {
       const fuzzy = findBestJaMatch(candidate, MOVE_JA_LIST, { maxDistance: 2 });
       if (!fuzzy) continue;
-      if (MOVE_BLOCKLIST.has(fuzzy)) continue;
+      if (MOVE_BLOCKLIST.has(fuzzy) || conflictMoves.has(fuzzy)) continue;
       if (reserved.has(fuzzy)) continue;
       if (moves.some((m) => m.value === fuzzy)) continue;
       moves.push({ value: fuzzy, confidence: "fuzzy" });
