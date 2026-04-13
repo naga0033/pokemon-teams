@@ -14,6 +14,7 @@ type TeamRow = {
   team_code: string | null;
   pokemons: unknown;
   registered_at: string;
+  view_count?: number | null;
 };
 
 function rowToTeam(row: TeamRow): Team {
@@ -30,6 +31,7 @@ function rowToTeam(row: TeamRow): Team {
     teamCode: row.team_code ?? undefined,
     pokemons: Array.isArray(row.pokemons) ? row.pokemons as Team["pokemons"] : [],
     registeredAt: row.registered_at,
+    viewCount: row.view_count ?? 0,
   };
 }
 
@@ -58,7 +60,7 @@ export async function loadSavedTeamById(id: string): Promise<Team | null> {
 }
 
 export async function insertTeam(team: Team): Promise<void> {
-  const { error } = await supabase.from("teams").insert({
+  const baseRow = {
     id: team.id,
     title: team.title,
     author: team.author,
@@ -71,8 +73,21 @@ export async function insertTeam(team: Team): Promise<void> {
     team_code: team.teamCode ?? null,
     pokemons: team.pokemons,
     registered_at: team.registeredAt,
+  };
+
+  const { error } = await supabase.from("teams").insert({
+    ...baseRow,
+    view_count: team.viewCount ?? 0,
   });
-  if (error) throw new Error(error.message);
+
+  if (!error) return;
+  if (!error.message.includes("view_count")) {
+    throw new Error(error.message);
+  }
+
+  // 旧スキーマ互換: view_count カラム未追加なら、その列なしで保存する
+  const { error: fallbackError } = await supabase.from("teams").insert(baseRow);
+  if (fallbackError) throw new Error(fallbackError.message);
 }
 
 export async function updateTeam(id: string, updates: Partial<Team>): Promise<void> {
@@ -83,9 +98,51 @@ export async function updateTeam(id: string, updates: Partial<Team>): Promise<vo
   if (updates.teamCode !== undefined) row.team_code = updates.teamCode;
   if (updates.sourceUrl !== undefined) row.source_url = updates.sourceUrl;
   if (updates.pokemons !== undefined) row.pokemons = updates.pokemons;
+  const { error } = await supabase.from("teams").update({
+    ...row,
+    ...(updates.viewCount !== undefined ? { view_count: updates.viewCount } : {}),
+  }).eq("id", id);
 
-  const { error } = await supabase.from("teams").update(row).eq("id", id);
-  if (error) throw new Error(error.message);
+  if (!error) return;
+  if (!error.message.includes("view_count")) {
+    throw new Error(error.message);
+  }
+
+  const { view_count, ...fallbackRow } = {
+    ...row,
+    ...(updates.viewCount !== undefined ? { view_count: updates.viewCount } : {}),
+  };
+  void view_count;
+
+  const { error: fallbackError } = await supabase.from("teams").update(fallbackRow).eq("id", id);
+  if (fallbackError) throw new Error(fallbackError.message);
+}
+
+export async function incrementTeamViewCount(id: string): Promise<number | null> {
+  const { data, error } = await supabase
+    .from("teams")
+    .select("view_count")
+    .eq("id", id)
+    .single();
+
+  if (error || !data) {
+    console.error("[incrementTeamViewCount/select]", error?.message ?? "team not found");
+    return null;
+  }
+
+  const current = typeof data.view_count === "number" ? data.view_count : 0;
+  const next = current + 1;
+  const { error: updateError } = await supabase
+    .from("teams")
+    .update({ view_count: next })
+    .eq("id", id);
+
+  if (updateError) {
+    console.error("[incrementTeamViewCount/update]", updateError.message);
+    return null;
+  }
+
+  return next;
 }
 
 export async function deleteTeam(id: string): Promise<void> {

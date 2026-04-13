@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getEnSlug, resolvePokemonJaName } from "@/lib/pokemon-names";
-import { loadSavedTeamById, updateTeam } from "@/lib/saved-teams";
+import { incrementTeamViewCount, loadSavedTeamById, updateTeam } from "@/lib/saved-teams";
 import type { Format, PokemonSlot, Team } from "@/lib/types";
 import { ADMIN_COOKIE_NAME, isValidAdminToken } from "@/lib/admin-auth";
 
@@ -54,6 +54,40 @@ type PatchBody = {
   teamCode?: string;
   pokemons?: Array<Record<string, unknown>>;
 };
+
+type ViewBody = {
+  action?: string;
+};
+
+export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const current = await loadSavedTeamById(id);
+  if (!current) {
+    return NextResponse.json({ error: "構築が見つかりません" }, { status: 404 });
+  }
+
+  let body: ViewBody | null = null;
+  try {
+    body = (await req.json()) as ViewBody;
+  } catch {
+    body = null;
+  }
+
+  if (body?.action && body.action !== "view") {
+    return NextResponse.json({ error: "不正なリクエストです" }, { status: 400 });
+  }
+
+  const nextCount = await incrementTeamViewCount(id);
+  if (nextCount == null) {
+    return NextResponse.json({
+      ok: false,
+      requiresMigration: true,
+      viewCount: current.viewCount ?? 0,
+    });
+  }
+
+  return NextResponse.json({ ok: true, viewCount: nextCount });
+}
 
 export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
   if (!isAdmin(req)) {

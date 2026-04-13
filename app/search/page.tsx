@@ -1,4 +1,5 @@
 // 構築記事検索ページ (白地版)
+import Link from "next/link";
 import { SearchFilters } from "@/components/SearchFilters";
 import { TrainerCard } from "@/components/TrainerCard";
 import { Pagination } from "@/components/Pagination";
@@ -8,7 +9,7 @@ import {
   sortTeams,
 } from "@/lib/search";
 import { loadSavedTeams } from "@/lib/saved-teams";
-import type { Format } from "@/lib/types";
+import type { Format, TeamSort } from "@/lib/types";
 import { getUsageSuggestNames } from "@/lib/usage-ranking";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ type SearchPageProps = {
   searchParams: Promise<{
     format?: string;
     pokemon?: string | string[];
+    sort?: string;
     page?: string;
   }>;
 };
@@ -31,14 +33,16 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     : sp.pokemon
       ? [sp.pokemon]
       : [];
+  const sort: TeamSort = sp.sort === "views" || sp.sort === "oldest" ? sp.sort : "newest";
   const page = Number.parseInt(sp.page ?? "1", 10) || 1;
 
-  const allMatched = sortTeams(searchTeams({ format, pokemons }, savedTeams));
+  const allMatched = sortTeams(searchTeams({ format, pokemons }, savedTeams), sort);
   const suggestions = getUsageSuggestNames(format, pokemons, 8);
   const { items, total, page: currentPage, totalPages } = paginateTeams(allMatched, page);
 
   const currentQuery = new URLSearchParams();
   currentQuery.set("format", format);
+  currentQuery.set("sort", sort);
   for (const p of pokemons) currentQuery.append("pokemon", p);
 
   return (
@@ -64,7 +68,43 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <span className="text-[11px] tracking-wide text-slate-400">
           {format === "single" ? "シングル" : "ダブル"}
           {pokemons.length > 0 && ` · ${pokemons.join(" + ")}`}
+          {` · ${sort === "newest" ? "新しい順" : sort === "views" ? "閲覧順" : "古い順"}`}
         </span>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+        <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
+          SORT
+        </span>
+        <div className="inline-flex w-full rounded-full border border-slate-200 bg-white p-1 shadow-[0_10px_24px_-20px_rgba(15,23,42,0.35)] sm:w-auto">
+          {(
+            [
+              { value: "newest", label: "新しい順" },
+              { value: "views", label: "閲覧順" },
+              { value: "oldest", label: "古い順" },
+            ] as const
+          ).map((option) => {
+            const next = new URLSearchParams(currentQuery);
+            next.set("sort", option.value);
+            next.delete("page");
+
+            const active = sort === option.value;
+
+            return (
+              <Link
+                key={option.value}
+                href={`/search?${next.toString()}`}
+                className={
+                  active
+                    ? "rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-[0_12px_24px_-18px_rgba(15,23,42,0.6)]"
+                    : "rounded-full px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                }
+              >
+                {option.label}
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {/* カードグリッド */}

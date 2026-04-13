@@ -1,7 +1,7 @@
-// 検索ロジック: 形式・ポケモン名でダミーデータを絞り込む
+// 検索ロジック: 形式・ポケモン名で構築を絞り込む
 import { DUMMY_TEAMS } from "./dummy-teams";
 import { normalizeJaText } from "./japanese-match";
-import type { SearchParams, Team } from "./types";
+import type { SearchParams, Team, TeamSort } from "./types";
 
 /** 1 ページあたりの件数 */
 export const PAGE_SIZE = 10;
@@ -33,13 +33,21 @@ export function searchTeams(params: SearchParams, extraTeams: Team[] = []): Team
   });
 }
 
-/** 順位 → レート順に並べ替え */
-export function sortTeams(teams: Team[]): Team[] {
+/** 指定した基準で並べ替え */
+export function sortTeams(teams: Team[], sort: TeamSort = "newest"): Team[] {
   return [...teams].sort((a, b) => {
-    if (a.rank != null && b.rank != null) return a.rank - b.rank;
-    if (a.rank != null) return -1;
-    if (b.rank != null) return 1;
-    return (b.rating ?? 0) - (a.rating ?? 0);
+    if (sort === "views") {
+      if ((a.viewCount ?? 0) !== (b.viewCount ?? 0)) {
+        return (b.viewCount ?? 0) - (a.viewCount ?? 0);
+      }
+      return b.registeredAt.localeCompare(a.registeredAt);
+    }
+
+    if (sort === "oldest") {
+      return a.registeredAt.localeCompare(b.registeredAt);
+    }
+
+    return b.registeredAt.localeCompare(a.registeredAt);
   });
 }
 

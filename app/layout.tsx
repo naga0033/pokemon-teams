@@ -55,6 +55,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <span className="ml-1 text-cyan-600">構築コレクション</span>
               </span>
             </Link>
+            {/* 共通ナビ */}
+            <nav className="flex items-center gap-3">
+              <Link
+                href="/guide"
+                className="text-xs font-bold text-slate-600 transition hover:text-cyan-600"
+              >
+                掲載方法
+              </Link>
+            </nav>
             {/* 管理者のみ: ヘッダー右側にショートカット */}
             {isAdmin && (
               <div className="flex items-center gap-2">

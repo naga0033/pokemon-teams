@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TeamRoster } from "@/components/TeamRoster";
 import { CopyStatsButton } from "@/components/CopyStatsButton";
+import { TeamViewTracker } from "@/components/TeamViewTracker";
 import { DUMMY_TEAMS } from "@/lib/dummy-teams";
 import { loadSavedTeams } from "@/lib/saved-teams";
 import { isAdminSession } from "@/lib/admin-auth";
@@ -59,6 +60,8 @@ export default async function TeamDetailPage({ params }: Props) {
 
   return (
     <div className="space-y-8">
+      <TeamViewTracker teamId={team.id} />
+
       {/* パンくず + 管理者向け編集ボタン */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-slate-400">
@@ -122,6 +125,9 @@ export default async function TeamDetailPage({ params }: Props) {
               {team.authorXHandle && (
                 <span className="ml-2 text-slate-400">{team.authorXHandle}</span>
               )}
+            </p>
+            <p className="mt-2 text-xs font-bold uppercase tracking-[0.24em] text-slate-400">
+              Views · {team.viewCount ?? 0}
             </p>
             {team.sourceUrl && (
               <a

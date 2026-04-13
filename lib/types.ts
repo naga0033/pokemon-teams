@@ -1,6 +1,7 @@
 // ポケモン構築紹介サイトのコアデータモデル
 
 export type Format = "single" | "double";
+export type TeamSort = "newest" | "views" | "oldest";
 
 export type StatValues = {
   hp: number;
@@ -61,11 +62,15 @@ export type Team = {
   pokemons: PokemonSlot[];
   /** 登録日 (ISO 文字列) */
   registeredAt: string;
+  /** 閲覧数 */
+  viewCount?: number;
 };
 
 export type SearchParams = {
   format?: Format;
   /** 絞り込みたいポケモン名 (日本語、複数指定で AND) */
   pokemons?: string[];
+  /** 並び順 */
+  sort?: TeamSort;
   page?: number;
 };

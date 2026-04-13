@@ -6,6 +6,7 @@ import type { Team, PokemonSlot } from "@/lib/types";
 export const runtime = "nodejs";
 
 type SaveBody = {
+  teamTitle?: string;
   trainerName?: string;
   teamCode?: string;
   tweetUrl?: string;
@@ -49,7 +50,12 @@ export async function POST(req: Request) {
 
   const team: Team = {
     id,
-    title: body.trainerName ? `${body.trainerName}さん の構築` : "名前未設定の構築",
+    title:
+      typeof body.teamTitle === "string" && body.teamTitle.trim()
+        ? body.teamTitle.trim()
+        : body.trainerName
+          ? `${body.trainerName}さん の構築`
+          : "名前未設定の構築",
     author: body.trainerName ?? "不明",
     format: body.format ?? "single",
     teamCode: body.teamCode ?? undefined,
