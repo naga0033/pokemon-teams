@@ -38,7 +38,7 @@ export default async function HomePage() {
             </h2>
           </div>
           <Link
-            href="/search"
+            href="/search?format=all"
             className="text-xs font-bold tracking-wider text-cyan-600 hover:text-slate-900"
           >
             すべて見る →

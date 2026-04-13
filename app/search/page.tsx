@@ -27,7 +27,13 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const sp = await searchParams;
   const savedTeams = await loadSavedTeams();
 
-  const format: Format = sp.format === "double" ? "double" : "single";
+  // format=all または未指定 → シングル/ダブル両方を表示
+  const isAll = sp.format === "all" || !sp.format;
+  const format: Format | undefined = isAll
+    ? undefined
+    : sp.format === "double"
+      ? "double"
+      : "single";
   const pokemons = Array.isArray(sp.pokemon)
     ? sp.pokemon
     : sp.pokemon
@@ -37,11 +43,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const page = Number.parseInt(sp.page ?? "1", 10) || 1;
 
   const allMatched = sortTeams(searchTeams({ format, pokemons }, savedTeams), sort);
-  const suggestions = getUsageSuggestNames(format, pokemons, 8);
+  const suggestions = getUsageSuggestNames(format ?? "single", pokemons, 8);
   const { items, total, page: currentPage, totalPages } = paginateTeams(allMatched, page);
 
   const currentQuery = new URLSearchParams();
-  currentQuery.set("format", format);
+  currentQuery.set("format", isAll ? "all" : format!);
   currentQuery.set("sort", sort);
   for (const p of pokemons) currentQuery.append("pokemon", p);
 
@@ -66,7 +72,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           </span>
         </div>
         <span className="text-[11px] tracking-wide text-slate-400">
-          {format === "single" ? "シングル" : "ダブル"}
+          {isAll ? "すべて (シングル + ダブル)" : format === "single" ? "シングル" : "ダブル"}
           {pokemons.length > 0 && ` · ${pokemons.join(" + ")}`}
           {` · ${sort === "newest" ? "新しい順" : sort === "views" ? "閲覧順" : "古い順"}`}
         </span>
