@@ -1,4 +1,5 @@
 // 個別構築詳細ページ (白地版)
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TeamRoster } from "@/components/TeamRoster";
@@ -11,6 +12,40 @@ export const dynamic = "force-dynamic";
 type Props = {
   params: Promise<{ id: string }>;
 };
+
+// OGP メタデータ: X/Slack 等でリンクを貼ったときにカード表示させる
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id: rawId } = await params;
+  const id = decodeURIComponent(rawId);
+  const savedTeams = await loadSavedTeams();
+  const allTeams = [...savedTeams, ...DUMMY_TEAMS];
+  const team = allTeams.find((t) => t.id === id);
+  if (!team) return {};
+
+  const pokeNames = team.pokemons
+    .map((p) => p.name)
+    .filter(Boolean)
+    .join(" / ");
+  const formatLabel = team.format === "double" ? "ダブル" : "シングル";
+  const title = `${team.title || team.author + "さんの構築"} | ポケコレ`;
+  const description = `${formatLabel} | ${team.author}${team.rank ? ` | 最終${team.rank}位` : ""}${team.rating ? ` | レート${team.rating}` : ""} - ${pokeNames}`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      // Next.js が同ディレクトリの opengraph-image.tsx を自動で OG 画像として参照
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}
 
 export default async function TeamDetailPage({ params }: Props) {
   const { id: rawId } = await params;
