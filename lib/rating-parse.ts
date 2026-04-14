@@ -6,6 +6,9 @@
 //   "R2100達成" → 2100
 //   "2048達成" → 2048
 //   "1位 2156.4" → 2156.4
+//   "1975まできました" → 1975
+//   "2100乗った" → 2100
+//   "1950超え" → 1950
 
 /** ツイート本文からレートっぽい数値を抽出。見つからなければ null */
 export function parseRatingFromText(text: string | undefined | null): number | null {
@@ -16,6 +19,13 @@ export function parseRatingFromText(text: string | undefined | null): number | n
     String.fromCharCode(c.charCodeAt(0) - 0xfee0),
   );
 
+  // 年号 (YYYY年) やチーム ID っぽい箇所を除外するため、事前にそれらをマスク
+  const masked = normalized
+    .replace(/\d{4}\s*年/g, "") // 2026年
+    .replace(/チーム\s*ID\s*[:：]?\s*[A-Z0-9]+/gi, "") // チームID: XXX
+    .replace(/\d{4}\s*\/\s*\d{1,2}\s*\/\s*\d{1,2}/g, "") // 2026/04/14
+    .replace(/\d{4}-\d{2}-\d{2}/g, ""); // 2026-04-14
+
   const patterns: RegExp[] = [
     // 「レート 2048.5」「レート:2048」
     /レート\s*[:：]?\s*(\d{4}(?:\.\d+)?)/,
@@ -23,15 +33,27 @@ export function parseRatingFromText(text: string | undefined | null): number | n
     /最終\s*(?:レート)?\s*[:：]?\s*(\d{4}(?:\.\d+)?)/,
     // 「R2100」(前後に数字/英字がない単独の R)
     /(?:^|[^a-zA-Z0-9])R\s*(\d{4}(?:\.\d+)?)/,
-    // 「2048.5 達成」「2100達成」
-    /(\d{4}(?:\.\d+)?)\s*(?:達成|到達)/,
+    // 「2048.5 達成」「2100達成」「2048到達」
+    /(\d{4}(?:\.\d+)?)\s*(?:達成|到達|タッチ)/,
     // 「○位 2156.4」(順位の直後の4桁数字)
     /\d+\s*位[^\d]{0,8}(\d{4}(?:\.\d+)?)/,
+    // 「1975まで」「1975まできた」
+    /(\d{4}(?:\.\d+)?)\s*まで/,
+    // 「1975に乗った」「2100に乗せた」「2100乗った」
+    /(\d{4}(?:\.\d+)?)\s*(?:に|を)?\s*乗/,
+    // 「1950超え」「2100超えた」「1900オーバー」
+    /(\d{4}(?:\.\d+)?)\s*(?:超え|オーバー)/,
+    // 「1975出せた」「2048出した」「1900出ました」
+    /(\d{4}(?:\.\d+)?)\s*出[せしまた]/,
+    // 「1900台」「2000台」(レンジ表現)
+    /(\d{4})\s*台/,
+    // 「最高レート○○」「最高○○」
+    /最高\s*(?:レート)?\s*[:：]?\s*(\d{4}(?:\.\d+)?)/,
   ];
 
   const candidates: number[] = [];
   for (const re of patterns) {
-    const m = normalized.match(re);
+    const m = masked.match(re);
     if (m) {
       const v = Number.parseFloat(m[1]);
       if (Number.isFinite(v) && v >= 1000 && v <= 3000) {
