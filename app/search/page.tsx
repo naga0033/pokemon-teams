@@ -63,57 +63,57 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         sticky={false}
       />
 
-      {/* 検索結果件数 */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-        <div className="flex items-center gap-3">
-          <span className="font-display text-[11px] font-bold uppercase tracking-[0.3em] text-cyan-600">
-            検索結果
+      {/* ソート (左) + 検索結果件数 (右) */}
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
+            SORT
           </span>
-          <span className="font-display text-2xl font-black text-slate-900">
-            {total}
-            <span className="ml-1 text-sm text-slate-400">件</span>
-          </span>
+          <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 shadow-[0_10px_24px_-20px_rgba(15,23,42,0.35)]">
+            {(
+              [
+                { value: "newest", label: "新しい順" },
+                { value: "views", label: "閲覧順" },
+                { value: "rating", label: "レート順" },
+                { value: "oldest", label: "古い順" },
+              ] as const
+            ).map((option) => {
+              const next = new URLSearchParams(currentQuery);
+              next.set("sort", option.value);
+              next.delete("page");
+
+              const active = sort === option.value;
+
+              return (
+                <Link
+                  key={option.value}
+                  href={`/search?${next.toString()}`}
+                  className={
+                    active
+                      ? "rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-[0_12px_24px_-18px_rgba(15,23,42,0.6)]"
+                      : "rounded-full px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                  }
+                >
+                  {option.label}
+                </Link>
+              );
+            })}
+          </div>
         </div>
-        <span className="text-[11px] tracking-wide text-slate-400">
-          {isAll ? "すべて (シングル + ダブル)" : format === "single" ? "シングル" : "ダブル"}
-          {pokemons.length > 0 && ` · ${pokemons.join(" + ")}`}
-          {` · ${sort === "newest" ? "新しい順" : sort === "views" ? "閲覧順" : sort === "rating" ? "レート順" : "古い順"}`}
-        </span>
-      </div>
-
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-        <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">
-          SORT
-        </span>
-        <div className="inline-flex w-full rounded-full border border-slate-200 bg-white p-1 shadow-[0_10px_24px_-20px_rgba(15,23,42,0.35)] sm:w-auto">
-          {(
-            [
-              { value: "newest", label: "新しい順" },
-              { value: "views", label: "閲覧順" },
-              { value: "rating", label: "レート順" },
-              { value: "oldest", label: "古い順" },
-            ] as const
-          ).map((option) => {
-            const next = new URLSearchParams(currentQuery);
-            next.set("sort", option.value);
-            next.delete("page");
-
-            const active = sort === option.value;
-
-            return (
-              <Link
-                key={option.value}
-                href={`/search?${next.toString()}`}
-                className={
-                  active
-                    ? "rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-[0_12px_24px_-18px_rgba(15,23,42,0.6)]"
-                    : "rounded-full px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                }
-              >
-                {option.label}
-              </Link>
-            );
-          })}
+        <div className="flex flex-col items-start gap-0.5 sm:items-end">
+          <div className="flex items-center gap-3">
+            <span className="font-display text-[11px] font-bold uppercase tracking-[0.3em] text-cyan-600">
+              検索結果
+            </span>
+            <span className="font-display text-2xl font-black text-slate-900">
+              {total}
+              <span className="ml-1 text-sm text-slate-400">件</span>
+            </span>
+          </div>
+          <span className="text-[11px] tracking-wide text-slate-400">
+            {isAll ? "すべて (シングル + ダブル)" : format === "single" ? "シングル" : "ダブル"}
+            {pokemons.length > 0 && ` · ${pokemons.join(" + ")}`}
+          </span>
         </div>
       </div>
 
