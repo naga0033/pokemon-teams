@@ -79,11 +79,11 @@ export default function GuidePage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/guide/overview-screen.jpg"
-                alt="バトル画面のスクリーンショット例 - シングル/ダブルの判定に使用"
+                alt="バトル画面のスクリーンショット例 - シングル/ダブルの判定とレート取得に使用"
                 className="w-full"
               />
               <div className="px-3 py-2 text-xs text-slate-600">
-                シングル / ダブルの判定に使います。
+                シングル / ダブルの判定と<strong>レートの自動反映</strong>に使います。
                 <br />
                 ツイート本文に書いてあれば<strong>この写真は不要</strong>です。
               </div>
@@ -134,6 +134,41 @@ export default function GuidePage() {
               <br />
               スクリーンショットを撮る際は、
               できるだけ<strong>正式名称 (デフォルトの名前)</strong> の状態でお願いいたします。
+            </p>
+          </div>
+
+          {/* レート反映のしくみ */}
+          <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4">
+            <h3 className="text-sm font-bold text-sky-800">
+              レートは自動で反映されます
+            </h3>
+            <p className="mt-2 text-xs leading-relaxed text-sky-700">
+              以下のどちらかがあれば、当サイトにレートが自動で反映されます。
+              <br />
+              ポストの<strong>本文にレートを書く</strong>だけでも OK です！
+            </p>
+            <ul className="mt-3 space-y-1.5 text-xs text-sky-700">
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 shrink-0 text-sky-500">●</span>
+                <span>
+                  <strong>バトル画面 (写真 1) を添付する</strong>
+                  <br />
+                  画面にレート数値が写っていれば自動で読み取ります。
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 shrink-0 text-sky-500">●</span>
+                <span>
+                  <strong>ポスト本文にレートを書く</strong>
+                  <br />
+                  「最終2048」「レート1900」「1975まで」「2100乗った」
+                  「最高1998」のような書き方に対応しています。
+                </span>
+              </li>
+            </ul>
+            <p className="mt-3 text-[11px] text-sky-600">
+              ※ レート情報がなくても掲載できます。
+              レートがあると「レート順」でソートした際に上位に表示されやすくなります。
             </p>
           </div>
 
