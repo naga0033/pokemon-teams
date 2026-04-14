@@ -98,6 +98,27 @@ export function TeamEditor({ initialTeam }: { initialTeam: Team }) {
                 <input value={team.teamCode ?? ""} onChange={(e) => setTeam((c) => ({ ...c, teamCode: e.target.value || undefined }))}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-cyan-400" />
               </label>
+              <label className="grid gap-1">
+                <span className="text-[10px] font-bold tracking-wider text-slate-400">レート (任意)</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={team.rating ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "") {
+                      setTeam((c) => ({ ...c, rating: undefined }));
+                      return;
+                    }
+                    const num = Number.parseFloat(raw);
+                    if (Number.isFinite(num)) {
+                      setTeam((c) => ({ ...c, rating: num }));
+                    }
+                  }}
+                  placeholder="例: 2048.5"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-cyan-400"
+                />
+              </label>
             </div>
           </div>
         </div>
@@ -200,7 +221,9 @@ export function TeamEditor({ initialTeam }: { initialTeam: Team }) {
         <button type="button" onClick={async () => {
           setSaving(true); setError(null); setMessage(null);
           try {
-            const res = await fetch(`/api/teams/${team.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(team) });
+            // rating は undefined だと JSON で省略されるので、クリアを確実に伝えるため null で送る
+            const payload = { ...team, rating: team.rating ?? null };
+            const res = await fetch(`/api/teams/${team.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
             const data = await res.json();
             if (!res.ok) throw new Error(data?.error ?? "保存に失敗しました");
             setMessage("保存しました"); router.refresh();

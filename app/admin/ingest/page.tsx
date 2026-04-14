@@ -371,18 +371,31 @@ export default function IngestPage() {
         score: number;
       } = { index: 0, parsed: null, rawText: null, score: -1 };
       let lastError: string | null = null;
+      let detectedRatingFromImage: number | null = null;
       const limit = Math.min(images.length, 4);
 
       for (let i = 0; i < limit; i++) {
         const result = await callAnalyzeApi(images[i].dataUrl);
         if (result.error) lastError = result.error;
         const parsedTeam = result.parsed as ParsedTeam | null;
+        // 各解析結果からレートを収集 (バトル画面に写ってることが多い)
+        const maybeRating = (result.parsed as { rating?: unknown })?.rating;
+        if (typeof maybeRating === "number" && Number.isFinite(maybeRating) && maybeRating >= 1000 && maybeRating <= 3000) {
+          if (detectedRatingFromImage == null || maybeRating > detectedRatingFromImage) {
+            detectedRatingFromImage = maybeRating;
+          }
+        }
         const score = scoreResult(parsedTeam);
         if (score > best.score) {
           best = { index: i, parsed: parsedTeam, rawText: result.rawText, score };
         }
         // 6匹×(名前1+特性2+持ち物2+技4×2)=66が満点。30以上なら十分
         if (score >= 30) break;
+      }
+
+      // 画像から検出したレートがあれば入力欄を更新 (ツイート本文抽出より優先)
+      if (detectedRatingFromImage != null) {
+        setRatingInput(String(detectedRatingFromImage));
       }
 
       if (best.score <= 0) {

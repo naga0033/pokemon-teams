@@ -98,6 +98,8 @@ export async function updateTeam(id: string, updates: Partial<Team>): Promise<vo
   if (updates.teamCode !== undefined) row.team_code = updates.teamCode;
   if (updates.sourceUrl !== undefined) row.source_url = updates.sourceUrl;
   if (updates.pokemons !== undefined) row.pokemons = updates.pokemons;
+  // rating: 全体 PATCH では常に一緒に渡ってくるので、undefined = クリア (null) として扱う
+  if ("rating" in updates) row.rating = updates.rating ?? null;
   const { error } = await supabase.from("teams").update({
     ...row,
     ...(updates.viewCount !== undefined ? { view_count: updates.viewCount } : {}),

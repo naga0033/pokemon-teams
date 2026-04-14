@@ -52,6 +52,7 @@ type PatchBody = {
   format?: Format;
   sourceUrl?: string;
   teamCode?: string;
+  rating?: number | null;
   pokemons?: Array<Record<string, unknown>>;
 };
 
@@ -117,6 +118,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       typeof body.sourceUrl === "string" && body.sourceUrl.trim() ? body.sourceUrl.trim() : undefined,
     teamCode:
       typeof body.teamCode === "string" && body.teamCode.trim() ? body.teamCode.trim() : undefined,
+    rating:
+      body.rating === null
+        ? undefined // 明示的にクリア
+        : typeof body.rating === "number" && Number.isFinite(body.rating) && body.rating > 0
+          ? body.rating
+          : current.rating, // body に無ければ現在値を保持
     pokemons: Array.isArray(body.pokemons)
       ? body.pokemons.map((pokemon) => normalizePokemon(pokemon))
       : current.pokemons,
