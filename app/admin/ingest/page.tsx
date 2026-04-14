@@ -330,6 +330,7 @@ export default function IngestPage() {
   const callStatsApi = useCallback(
     async (dataUrl: string): Promise<{
       stats: Array<{ slot: number; name?: string; nature?: string; stats?: StatValues; evs?: StatValues }>;
+      rating?: number | null;
       error?: string;
     }> => {
       const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
@@ -343,10 +344,17 @@ export default function IngestPage() {
         });
         const data = await res.json();
         if (!res.ok) return { stats: [], error: data?.error ?? "解析失敗" };
-        const pokemons = (data.result as { pokemons?: unknown[] })?.pokemons;
-        if (!Array.isArray(pokemons)) return { stats: [], error: "ステータスデータなし" };
+        const result = data.result as { pokemons?: unknown[]; rating?: unknown };
+        const pokemons = result?.pokemons;
+        const maybeRating = result?.rating;
+        const rating =
+          typeof maybeRating === "number" && Number.isFinite(maybeRating) && maybeRating >= 1000 && maybeRating <= 3000
+            ? maybeRating
+            : null;
+        if (!Array.isArray(pokemons)) return { stats: [], rating, error: "ステータスデータなし" };
         return {
           stats: pokemons as Array<{ slot: number; name?: string; nature?: string; stats?: StatValues; evs?: StatValues }>,
+          rating,
         };
       } catch (err) {
         return { stats: [], error: err instanceof Error ? err.message : "エラー" };
@@ -420,6 +428,13 @@ export default function IngestPage() {
         for (let i = 0; i < limit; i++) {
           if (i === best.index) continue; // 能力画面はスキップ
           const statsResult = await callStatsApi(images[i].dataUrl);
+          // ステータス解析からもレートを拾う (バトル画面はここで解析される)
+          if (statsResult.rating != null) {
+            if (detectedRatingFromImage == null || statsResult.rating > detectedRatingFromImage) {
+              detectedRatingFromImage = statsResult.rating;
+              setRatingInput(String(statsResult.rating));
+            }
+          }
           if (statsResult.stats.length > 0) {
             mergedTeam = {
               ...mergedTeam,
