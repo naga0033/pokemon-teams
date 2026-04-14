@@ -39,7 +39,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     : sp.pokemon
       ? [sp.pokemon]
       : [];
-  const sort: TeamSort = sp.sort === "views" || sp.sort === "oldest" ? sp.sort : "newest";
+  const sort: TeamSort =
+    sp.sort === "views" || sp.sort === "oldest" || sp.sort === "rating"
+      ? sp.sort
+      : "newest";
   const page = Number.parseInt(sp.page ?? "1", 10) || 1;
 
   const allMatched = sortTeams(searchTeams({ format, pokemons }, savedTeams), sort);
@@ -74,7 +77,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <span className="text-[11px] tracking-wide text-slate-400">
           {isAll ? "すべて (シングル + ダブル)" : format === "single" ? "シングル" : "ダブル"}
           {pokemons.length > 0 && ` · ${pokemons.join(" + ")}`}
-          {` · ${sort === "newest" ? "新しい順" : sort === "views" ? "閲覧順" : "古い順"}`}
+          {` · ${sort === "newest" ? "新しい順" : sort === "views" ? "閲覧順" : sort === "rating" ? "レート順" : "古い順"}`}
         </span>
       </div>
 
@@ -87,6 +90,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             [
               { value: "newest", label: "新しい順" },
               { value: "views", label: "閲覧順" },
+              { value: "rating", label: "レート順" },
               { value: "oldest", label: "古い順" },
             ] as const
           ).map((option) => {

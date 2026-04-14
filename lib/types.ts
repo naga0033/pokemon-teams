@@ -1,7 +1,7 @@
 // ポケモン構築紹介サイトのコアデータモデル
 
 export type Format = "single" | "double";
-export type TeamSort = "newest" | "views" | "oldest";
+export type TeamSort = "newest" | "views" | "oldest" | "rating";
 
 export type StatValues = {
   hp: number;

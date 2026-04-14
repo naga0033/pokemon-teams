@@ -11,6 +11,7 @@ type SaveBody = {
   teamCode?: string;
   tweetUrl?: string;
   format?: "single" | "double";
+  rating?: number | null;
   pokemons?: Array<Record<string, unknown>>;
 };
 
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
     format: body.format ?? "single",
     teamCode: body.teamCode ?? undefined,
     sourceUrl: body.tweetUrl ?? undefined,
+    rating: typeof body.rating === "number" && Number.isFinite(body.rating) ? body.rating : undefined,
     registeredAt: new Date().toISOString().slice(0, 10),
     pokemons,
   };

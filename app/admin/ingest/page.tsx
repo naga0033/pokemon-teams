@@ -12,6 +12,7 @@ import { MOVE_NAMES_JA } from "@/lib/move-names";
 import { ABILITY_NAMES_JA } from "@/lib/ability-names";
 import { ITEMS } from "@/lib/items";
 import { NATURES } from "@/lib/natures";
+import { parseRatingFromText } from "@/lib/rating-parse";
 import { SearchableSelect } from "@/components/admin/SearchableSelect";
 import { NatureIndicatorLabel } from "@/components/admin/NatureIndicator";
 
@@ -175,6 +176,7 @@ export default function IngestPage() {
   const [saveFormat, setSaveFormat] = useState<"single" | "double">("single");
   const [savedTeamId, setSavedTeamId] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const [ratingInput, setRatingInput] = useState<string>("");
 
   const updatePokemon = useCallback(
     (slot: number, updater: (pokemon: ParsedPokemon) => ParsedPokemon) => {
@@ -461,6 +463,9 @@ export default function IngestPage() {
       }
 
       setTweetData(data as TweetData);
+      // ツイート本文からレートを自動抽出 (あれば)
+      const detectedRating = parseRatingFromText((data as TweetData).text);
+      setRatingInput(detectedRating != null ? String(detectedRating) : "");
 
       if (data.images?.length > 0) {
         await analyzeAllImages(data.images);
@@ -666,7 +671,7 @@ export default function IngestPage() {
             ))}
           </div>
 
-          {/* 形式選択 + 登録ボタン（一番下） */}
+          {/* 形式選択 + レート + 登録ボタン（一番下） */}
           <div className="mt-6 flex flex-col items-center gap-3">
             {/* シングル/ダブル トグル */}
             <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
@@ -685,6 +690,30 @@ export default function IngestPage() {
                 </button>
               ))}
             </div>
+
+            {/* レート入力 (任意) */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold text-slate-600">
+                レート (任意)
+              </label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={ratingInput}
+                onChange={(e) => setRatingInput(e.target.value)}
+                placeholder="例: 2048.5"
+                className="w-28 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-cyan-400 focus:outline-none"
+              />
+              {ratingInput && (
+                <button
+                  type="button"
+                  onClick={() => setRatingInput("")}
+                  className="text-[11px] text-slate-400 hover:text-slate-700"
+                >
+                  クリア
+                </button>
+              )}
+            </div>
             <button
               type="button"
               disabled={stage === "saving" || !!savedTeamId}
@@ -694,6 +723,9 @@ export default function IngestPage() {
                 setSavedTeamId(null);
                 setCopyFeedback(null);
                 try {
+                  const ratingNum = Number.parseFloat(ratingInput);
+                  const ratingPayload =
+                    Number.isFinite(ratingNum) && ratingNum > 0 ? ratingNum : null;
                   const res = await fetch("/api/teams/save", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -702,6 +734,7 @@ export default function IngestPage() {
                       teamCode: parsed.teamCode,
                       tweetUrl: tweetData.tweetUrl,
                       format: saveFormat,
+                      rating: ratingPayload,
                       pokemons: parsed.pokemons,
                     }),
                   });

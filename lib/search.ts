@@ -43,6 +43,18 @@ export function sortTeams(teams: Team[], sort: TeamSort = "newest"): Team[] {
       return b.registeredAt.localeCompare(a.registeredAt);
     }
 
+    if (sort === "rating") {
+      // レートなし (undefined) は一番下に。レート降順。
+      const aHas = typeof a.rating === "number";
+      const bHas = typeof b.rating === "number";
+      if (aHas && !bHas) return -1;
+      if (!aHas && bHas) return 1;
+      if (aHas && bHas && a.rating !== b.rating) {
+        return (b.rating as number) - (a.rating as number);
+      }
+      return b.registeredAt.localeCompare(a.registeredAt);
+    }
+
     if (sort === "oldest") {
       return a.registeredAt.localeCompare(b.registeredAt);
     }
