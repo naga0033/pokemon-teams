@@ -76,7 +76,7 @@ export const MOVE_NAMES_JA: Record<string, string> = {
   "low-sweep": "ローキック",
   "double-kick": "にどげり",
   "arm-thrust": "マッスルパンチ",
-  "upper-hand": "せんせいのても",
+  "upper-hand": "はやてがえし",
   "surging-strikes": "すいりゅうれんだ",
   "thunderous-kick": "らいめいげり",
   "cross-poison": "クロスポイズン",
@@ -1021,7 +1021,6 @@ export const MOVE_NAMES_JA: Record<string, string> = {
   "shadow-shed": "ダークシェッド",
   "shadow-sky": "ダークスカイ",
   // ポケモンチャンピオンズ の新技 (公式英語slug が未確定のため暫定)
-  "hayate-gaeshi": "はやてがえし",
   "shaka-shaka-cannon": "シャカシャカほう",
 };
 
