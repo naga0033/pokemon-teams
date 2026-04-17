@@ -64,6 +64,8 @@ export type Team = {
   registeredAt: string;
   /** 閲覧数 */
   viewCount?: number;
+  /** 公開フラグ (false = 非公開) */
+  isPublic?: boolean;
 };
 
 export type SearchParams = {

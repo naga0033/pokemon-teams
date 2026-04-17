@@ -76,6 +76,18 @@ export function TeamEditor({ initialTeam }: { initialTeam: Team }) {
                 <option value="single">シングル</option>
                 <option value="double">ダブル</option>
               </select>
+              {/* 公開/非公開トグル */}
+              <button
+                type="button"
+                onClick={() => setTeam((c) => ({ ...c, isPublic: !(c.isPublic ?? true) }))}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-bold transition ${
+                  (team.isPublic ?? true)
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-slate-200 bg-slate-100 text-slate-500"
+                }`}
+              >
+                {(team.isPublic ?? true) ? "🌐 公開中" : "🔒 非公開"}
+              </button>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <label className="grid gap-1">

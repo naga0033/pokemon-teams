@@ -54,6 +54,7 @@ type PatchBody = {
   teamCode?: string;
   rating?: number | null;
   pokemons?: Array<Record<string, unknown>>;
+  isPublic?: boolean;
 };
 
 type ViewBody = {
@@ -127,6 +128,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     pokemons: Array.isArray(body.pokemons)
       ? body.pokemons.map((pokemon) => normalizePokemon(pokemon))
       : current.pokemons,
+    isPublic: typeof body.isPublic === "boolean" ? body.isPublic : current.isPublic ?? true,
   };
 
   try {

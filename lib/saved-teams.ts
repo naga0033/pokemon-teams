@@ -15,6 +15,7 @@ type TeamRow = {
   pokemons: unknown;
   registered_at: string;
   view_count?: number | null;
+  is_public?: boolean | null;
 };
 
 function rowToTeam(row: TeamRow): Team {
@@ -32,6 +33,7 @@ function rowToTeam(row: TeamRow): Team {
     pokemons: Array.isArray(row.pokemons) ? row.pokemons as Team["pokemons"] : [],
     registeredAt: row.registered_at,
     viewCount: row.view_count ?? 0,
+    isPublic: row.is_public ?? true,
   };
 }
 
@@ -98,6 +100,7 @@ export async function updateTeam(id: string, updates: Partial<Team>): Promise<vo
   if (updates.teamCode !== undefined) row.team_code = updates.teamCode;
   if (updates.sourceUrl !== undefined) row.source_url = updates.sourceUrl;
   if (updates.pokemons !== undefined) row.pokemons = updates.pokemons;
+  if (updates.isPublic !== undefined) row.is_public = updates.isPublic;
   // rating: 全体 PATCH では常に一緒に渡ってくるので、undefined = クリア (null) として扱う
   if ("rating" in updates) row.rating = updates.rating ?? null;
   const { error } = await supabase.from("teams").update({
