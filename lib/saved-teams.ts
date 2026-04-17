@@ -37,12 +37,11 @@ function rowToTeam(row: TeamRow): Team {
   };
 }
 
-export async function loadSavedTeams(): Promise<Team[]> {
-  const { data, error } = await supabase
-    .from("teams")
-    .select("*")
-    .order("created_at", { ascending: false });
+export async function loadSavedTeams(onlyPublic = true): Promise<Team[]> {
+  let query = supabase.from("teams").select("*").order("created_at", { ascending: false });
+  if (onlyPublic) query = query.eq("is_public", true);
 
+  const { data, error } = await query;
   if (error) {
     console.error("[loadSavedTeams]", error.message);
     return [];

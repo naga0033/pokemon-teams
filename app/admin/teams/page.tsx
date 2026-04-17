@@ -10,7 +10,7 @@ export default async function AdminTeamsPage() {
     redirect("/admin/access");
   }
 
-  const teams = await loadSavedTeams();
+  const teams = await loadSavedTeams(false);
 
   return (
     <div className="space-y-6">
