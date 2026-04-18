@@ -518,31 +518,83 @@ async function parseStatusScreen(words: Word[], imageW: number): Promise<StatusS
 
 /** 順位/レート画面をパース */
 function parseRankScreen(words: Word[], rawText: string): { rank: number | null; rating: number | null } {
-  // 生テキストに対して「○○位」「レート」をキーに抽出
-  // レート: 1000-3000 の範囲（整数または小数）
-  // 順位: 「最終1位」「1位」等
+  // 生テキストに対して「○○位」「レート」「自分の成績」をキーに抽出
+  // レート: 必ず小数（例 2315.541）で 1000-3000 の範囲
+  // 順位: 「○位」（ただし日付・時刻部分は除外）
   let rank: number | null = null;
   let rating: number | null = null;
 
-  // 順位抽出: 「1位」〜「99999位」
-  const rankMatch = rawText.match(/(\d{1,6})\s*位/);
-  if (rankMatch) {
-    const n = Number.parseInt(rankMatch[1], 10);
-    if (n > 0 && n <= 999999) rank = n;
+  // 日付・時刻部分を除去してノイズを減らす（2026/04/08, 09:00 等）
+  const cleaned = rawText
+    .replace(/\d{4}\/\d{1,2}\/\d{1,2}/g, " ")
+    .replace(/\d{1,2}:\d{2}/g, " ");
+
+  // --- 順位抽出 ---
+  // 優先度1: 「自分の成績」の近くにある「○位」
+  const selfIdx = cleaned.indexOf("自分の成績");
+  if (selfIdx >= 0) {
+    // 自分の成績の前後200文字以内で「○位」を探す
+    const window = cleaned.slice(Math.max(0, selfIdx - 200), selfIdx + 200);
+    const m = window.match(/(\d{1,6})\s*位/);
+    if (m) {
+      const n = Number.parseInt(m[1], 10);
+      if (n > 0 && n <= 999999) rank = n;
+    }
+  }
+  // 優先度2: 任意の「○位」
+  if (rank == null) {
+    const m = cleaned.match(/(\d{1,6})\s*位/);
+    if (m) {
+      const n = Number.parseInt(m[1], 10);
+      if (n > 0 && n <= 999999) rank = n;
+    }
   }
 
-  // レート抽出: 「レート」の後続、または 1000〜3000 の数値
-  const ratingLabelMatch = rawText.match(/レート[\s:：]*([\d,]+(?:\.\d+)?)/);
-  if (ratingLabelMatch) {
-    const n = Number.parseFloat(ratingLabelMatch[1].replace(/,/g, ""));
-    if (n >= 1000 && n <= 3000) rating = n;
+  // --- レート抽出 ---
+  // ポケモンチャンピオンズのレートは必ず小数表記 (例 2315.541)
+  // 優先度1: 「○位」ラベル直後に現れる小数（= 自分のレートが画面下部に大きく表示される位置）
+  // 優先度2: 自分の成績ラベル近傍の小数
+  // 優先度3: 画面内の最初の小数（ランキング1位の値になってしまうので最後の手段）
+
+  // 優先度1: rank が判明していれば「<rank>位\s*<decimal>」パターンを探す
+  if (rank != null) {
+    const rankLabelRe = new RegExp(`${rank}\\s*位[\\s\\S]{0,30}?(\\d{3,4}\\.\\d+)`);
+    const m = cleaned.match(rankLabelRe);
+    if (m) {
+      const n = Number.parseFloat(m[1]);
+      if (n >= 1000 && n <= 3000) rating = n;
+    }
   }
+  // 優先度1.5: 任意の「○位\n<decimal>」パターン（rank ラベル直後）
   if (rating == null) {
-    // フォールバック: 1000-3000 の数値を全検索、最も多く出るものを採用
-    const candidates = [...rawText.matchAll(/\b(\d{4}(?:\.\d+)?)\b/g)]
+    const m = cleaned.match(/\d+\s*位[\s\S]{0,30}?(\d{3,4}\.\d+)/);
+    if (m) {
+      const n = Number.parseFloat(m[1]);
+      if (n >= 1000 && n <= 3000) rating = n;
+    }
+  }
+  // 優先度2: 自分の成績ラベル近傍
+  if (rating == null && selfIdx >= 0) {
+    const window = cleaned.slice(selfIdx, selfIdx + 200);
+    const near = [...window.matchAll(/\b(\d{3,4}\.\d+)\b/g)]
       .map((m) => Number.parseFloat(m[1]))
       .filter((n) => n >= 1000 && n <= 3000);
-    if (candidates.length > 0) rating = candidates[0];
+    if (near.length > 0) rating = near[0];
+  }
+  // 優先度3: 画面内の最初の小数（最終フォールバック）
+  if (rating == null) {
+    const all = [...cleaned.matchAll(/\b(\d{3,4}\.\d+)\b/g)]
+      .map((m) => Number.parseFloat(m[1]))
+      .filter((n) => n >= 1000 && n <= 3000);
+    if (all.length > 0) rating = all[0];
+  }
+  // 小数が一切ない場合は「レート」ラベル付き整数
+  if (rating == null) {
+    const labelMatch = cleaned.match(/レート[\s:：]*(\d{4})(?!\d)/);
+    if (labelMatch) {
+      const n = Number.parseInt(labelMatch[1], 10);
+      if (n >= 1000 && n <= 3000) rating = n;
+    }
   }
 
   return { rank, rating };
