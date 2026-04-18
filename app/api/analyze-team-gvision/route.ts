@@ -396,14 +396,18 @@ function extractStatsFromBox(tokens: MergedToken[]): StatSet {
       )
       .sort((a, b) => a.x - b.x);
 
-    if (sameRow.length >= 2) {
-      result[key] = {
-        actual: parseInt(sameRow[0].text, 10),
-        ev: parseInt(sameRow[sameRow.length - 1].text, 10),
-      };
-    } else if (sameRow.length === 1) {
-      // 努力値が検出できない場合は 0 とみなす（OCR で "0" が "O" に化ける等）
-      result[key] = { actual: parseInt(sameRow[0].text, 10), ev: 0 };
+    if (sameRow.length >= 1) {
+      // 実数値: ラベルに最も近い（=最左）digit
+      const actual = parseInt(sameRow[0].text, 10);
+      // 努力値: ポケモンチャンピオンズ画面は 0〜32 で表示される。
+      // 左右2カラムレイアウトで隣接ポケモンの実数値（3桁）を拾わないよう、
+      // EV候補は「33未満」に限定する
+      const evCandidates = sameRow
+        .slice(1)
+        .map((t) => parseInt(t.text, 10))
+        .filter((n) => Number.isFinite(n) && n >= 0 && n <= 32);
+      const ev = evCandidates.length > 0 ? evCandidates[evCandidates.length - 1] : 0;
+      result[key] = { actual, ev };
     }
   }
   return result;
