@@ -397,14 +397,41 @@ function extractStatsFromBox(tokens: MergedToken[]): StatSet {
       .sort((a, b) => a.x - b.x);
 
     if (sameRow.length >= 1) {
-      // 実数値: ラベルに最も近い（=最左）digit
-      const actual = parseInt(sameRow[0].text, 10);
-      // 努力値: ポケモンチャンピオンズ画面は 0〜32 で表示される。
-      // 左右2カラムレイアウトで隣接ポケモンの実数値（3桁）を拾わないよう、
-      // EV候補は「33未満」に限定する
-      const evCandidates = sameRow
+      // 実数値は必ず1〜3桁。4桁以上は「実数値 + 努力値」が連結された OCR 誤りとみなして分解。
+      // 例: "1572" → 実数値 "157" / 努力値 "2"（努力値は 0〜32）
+      const digitsList: string[] = [];
+      for (const t of sameRow) {
+        const txt = t.text;
+        if (txt.length <= 3) {
+          digitsList.push(txt);
+        } else {
+          // 末尾から 1〜2 桁を努力値候補として切り出し、残りを実数値にする
+          let split = false;
+          for (const evLen of [2, 1]) {
+            const evPart = txt.slice(-evLen);
+            const actualPart = txt.slice(0, -evLen);
+            const evNum = parseInt(evPart, 10);
+            const actualNum = parseInt(actualPart, 10);
+            if (
+              actualPart.length >= 1 && actualPart.length <= 3 &&
+              Number.isFinite(actualNum) && actualNum > 0 &&
+              Number.isFinite(evNum) && evNum >= 0 && evNum <= 32
+            ) {
+              digitsList.push(actualPart, evPart);
+              split = true;
+              break;
+            }
+          }
+          if (!split) digitsList.push(txt);
+        }
+      }
+
+      // 実数値: 先頭のトークン（3桁以内）
+      const actual = parseInt(digitsList[0], 10);
+      // 努力値: 残りのトークンから 0〜32 の数値
+      const evCandidates = digitsList
         .slice(1)
-        .map((t) => parseInt(t.text, 10))
+        .map((s) => parseInt(s, 10))
         .filter((n) => Number.isFinite(n) && n >= 0 && n <= 32);
       const ev = evCandidates.length > 0 ? evCandidates[evCandidates.length - 1] : 0;
       result[key] = { actual, ev };
