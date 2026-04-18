@@ -631,6 +631,35 @@ function parseRankScreen(words: Word[], rawText: string): { rank: number | null;
   return { rank, rating };
 }
 
+/** 能力画面ヘッダーからトレーナー名とチームIDを抽出 */
+function parseAbilityHeader(rawText: string): { trainerName: string | null; teamCode: string | null } {
+  // チームID: 26TN6G3AMG 形式。全角コロンや空白揺れに対応
+  const codeMatch = rawText.match(/チーム\s*ID\s*[:：]?\s*([A-Z0-9]{6,16})/);
+  const teamCode = codeMatch ? codeMatch[1] : null;
+
+  // トレーナー名は「チームID」行の後ろ数行以内に単独で現れる短い語
+  // 除外語: L, R, 能力, ステータス, スロット<n>, 数字のみ, チームID...
+  const SYSTEM_RE = /^(L|R|能力|ステータス|スロット\s*\d*|チーム\s*ID.*|\d+)$/;
+  const lines = rawText.split("\n").map((l) => l.trim()).filter(Boolean);
+  const codeLineIdx = lines.findIndex((l) => /チーム\s*ID/.test(l));
+  let trainerName: string | null = null;
+  if (codeLineIdx >= 0) {
+    for (let i = codeLineIdx + 1; i < Math.min(lines.length, codeLineIdx + 6); i++) {
+      const l = lines[i];
+      if (SYSTEM_RE.test(l)) continue;
+      // ポケモン名の可能性があるものは除外（上部はトレーナー名のみ）
+      const c = classify(l);
+      if (c.category === "pokemon") break;
+      if (l.length >= 1 && l.length <= 12 && !/^[A-Z0-9]+$/.test(l)) {
+        trainerName = l;
+        break;
+      }
+    }
+  }
+
+  return { trainerName, teamCode };
+}
+
 /** 画面タイプ自動判定 */
 function detectScreenType(words: Word[], rawText: string): "ability" | "status" | "rank" | "unknown" {
   const tokens = mergeWordFragments(words);
@@ -694,9 +723,10 @@ export async function POST(req: Request) {
 
     // デフォルト: 能力画面
     const pokemons = parseByPosition(words, imageW);
+    const { trainerName, teamCode } = parseAbilityHeader(rawText);
     return NextResponse.json({
       screenType,
-      result: { pokemons, teamTitle: null, trainerName: null, teamCode: null, rating: null },
+      result: { pokemons, teamTitle: null, trainerName, teamCode, rating: null },
       rawText,
       wordCount: words.length,
     });

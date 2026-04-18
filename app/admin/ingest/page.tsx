@@ -436,7 +436,13 @@ export default function IngestPage() {
       );
 
       // 画面タイプ別に分類
-      const abilityResults: Array<{ index: number; pokemons: ParsedPokemon[]; rawText: string | null }> = [];
+      const abilityResults: Array<{
+        index: number;
+        pokemons: ParsedPokemon[];
+        rawText: string | null;
+        trainerName: string | null;
+        teamCode: string | null;
+      }> = [];
       const statusResults: Array<{ index: number; slots: Array<Record<string, unknown>> }> = [];
       const rankResults: Array<{ index: number; rank: number | null; rating: number | null }> = [];
       let lastError: string | null = null;
@@ -448,7 +454,13 @@ export default function IngestPage() {
         if (r.rawText) lastRawText = r.rawText;
         if (r.screenType === "ability") {
           const pokemons = (r.result.pokemons as ParsedPokemon[] | undefined) ?? [];
-          abilityResults.push({ index: i, pokemons, rawText: r.rawText });
+          abilityResults.push({
+            index: i,
+            pokemons,
+            rawText: r.rawText,
+            trainerName: (r.result.trainerName as string | null | undefined) ?? null,
+            teamCode: (r.result.teamCode as string | null | undefined) ?? null,
+          });
         } else if (r.screenType === "status") {
           const slots = (r.result.statusSlots as Array<Record<string, unknown>> | undefined) ?? [];
           statusResults.push({ index: i, slots });
@@ -476,6 +488,8 @@ export default function IngestPage() {
       let bestAbility: ParsedPokemon[] | null = null;
       let bestScore = -1;
       let bestRaw: string | null = null;
+      let bestTrainerName: string | null = null;
+      let bestTeamCode: string | null = null;
       for (const a of abilityResults) {
         const sc = scoreAbility(a.pokemons);
         if (sc > bestScore) {
@@ -483,7 +497,18 @@ export default function IngestPage() {
           bestIndex = a.index;
           bestAbility = a.pokemons;
           bestRaw = a.rawText;
+          bestTrainerName = a.trainerName;
+          bestTeamCode = a.teamCode;
         }
+      }
+      // 複数の能力画面でトレーナー名やチームIDが拾えた場合、best 以外から補完
+      if (!bestTrainerName) {
+        const found = abilityResults.find((a) => a.trainerName);
+        if (found) bestTrainerName = found.trainerName;
+      }
+      if (!bestTeamCode) {
+        const found = abilityResults.find((a) => a.teamCode);
+        if (found) bestTeamCode = found.teamCode;
       }
 
       if (!bestAbility || bestScore <= 0) {
@@ -511,8 +536,8 @@ export default function IngestPage() {
       }));
       let mergedTeam: ParsedTeam = {
         teamTitle: null,
-        trainerName: null,
-        teamCode: null,
+        trainerName: bestTrainerName,
+        teamCode: bestTeamCode,
         pokemons: basePokemons,
       };
 
@@ -599,8 +624,8 @@ export default function IngestPage() {
         const pokemons = (r.result.pokemons as ParsedPokemon[] | undefined) ?? [];
         setParsed({
           teamTitle: null,
-          trainerName: null,
-          teamCode: null,
+          trainerName: (r.result.trainerName as string | null | undefined) ?? null,
+          teamCode: (r.result.teamCode as string | null | undefined) ?? null,
           pokemons: pokemons.map((p, i) => ({
             slot: p.slot ?? i + 1,
             name: p.name ?? null,
