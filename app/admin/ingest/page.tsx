@@ -1124,9 +1124,30 @@ function PokemonResultCard({
 
         {/* ステータス & 努力値 */}
         <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-          <p className="mb-1.5 text-[10px] font-bold tracking-wider text-slate-500">
-            実数値 / 努力値
-          </p>
+          <div className="mb-1.5 flex items-center justify-between">
+            <p className="text-[10px] font-bold tracking-wider text-slate-500">
+              実数値 / 努力値
+            </p>
+            {(() => {
+              // 努力値合計チェック (ポケモンチャンピオンズは合計66が上限)
+              const total = STAT_KEYS.reduce((sum, k) => sum + (pokemon.evs?.[k] ?? 0), 0);
+              // 全て 0 の場合（ステータス画面がまだ読み込まれていない等）は表示しない
+              if (total === 0) return null;
+              const ok = total === 66;
+              return (
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                    ok
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-amber-100 text-amber-700"
+                  }`}
+                  title={ok ? "努力値合計OK" : "努力値合計が66になっていません（OCR誤読の可能性）"}
+                >
+                  合計 {total}/66 {ok ? "✓" : "⚠"}
+                </span>
+              );
+            })()}
+          </div>
           <div className="grid grid-cols-3 gap-x-3 gap-y-1.5 text-[11px]">
             {([
               ["HP", "hp"],
