@@ -516,12 +516,55 @@ async function parseStatusScreen(words: Word[], imageW: number): Promise<StatusS
   return slots;
 }
 
+/** 順位/レート画面をパース */
+function parseRankScreen(words: Word[], rawText: string): { rank: number | null; rating: number | null } {
+  // 生テキストに対して「○○位」「レート」をキーに抽出
+  // レート: 1000-3000 の範囲（整数または小数）
+  // 順位: 「最終1位」「1位」等
+  let rank: number | null = null;
+  let rating: number | null = null;
+
+  // 順位抽出: 「1位」〜「99999位」
+  const rankMatch = rawText.match(/(\d{1,6})\s*位/);
+  if (rankMatch) {
+    const n = Number.parseInt(rankMatch[1], 10);
+    if (n > 0 && n <= 999999) rank = n;
+  }
+
+  // レート抽出: 「レート」の後続、または 1000〜3000 の数値
+  const ratingLabelMatch = rawText.match(/レート[\s:：]*([\d,]+(?:\.\d+)?)/);
+  if (ratingLabelMatch) {
+    const n = Number.parseFloat(ratingLabelMatch[1].replace(/,/g, ""));
+    if (n >= 1000 && n <= 3000) rating = n;
+  }
+  if (rating == null) {
+    // フォールバック: 1000-3000 の数値を全検索、最も多く出るものを採用
+    const candidates = [...rawText.matchAll(/\b(\d{4}(?:\.\d+)?)\b/g)]
+      .map((m) => Number.parseFloat(m[1]))
+      .filter((n) => n >= 1000 && n <= 3000);
+    if (candidates.length > 0) rating = candidates[0];
+  }
+
+  return { rank, rating };
+}
+
 /** 画面タイプ自動判定 */
-function detectScreenType(words: Word[]): "ability" | "status" | "unknown" {
+function detectScreenType(words: Word[], rawText: string): "ability" | "status" | "rank" | "unknown" {
   const tokens = mergeWordFragments(words);
   const texts = new Set(tokens.map((t) => t.text));
+
+  // 順位/レート画面: 「レート」ラベルがあり、かつ 1000-3000 の数値が存在
+  const hasRateLabel = rawText.includes("レート") || rawText.includes("最終順位") || /\d+\s*位/.test(rawText);
   const statLabelCount = STAT_LABELS.filter((s) => texts.has(s.label)).length;
+
+  // ステータス画面優先（レート文字が含まれていてもステータスラベルが多いならステータス）
   if (statLabelCount >= 3) return "status";
+
+  if (hasRateLabel) {
+    const { rank, rating } = parseRankScreen(words, rawText);
+    if (rank != null || rating != null) return "rank";
+  }
+
   // 能力画面は技・特性・持ち物が多数出るので、それらを数える
   let abilityHitCount = 0;
   for (const t of tokens) {
@@ -544,15 +587,23 @@ export async function POST(req: Request) {
   try {
     const { words, rawText, imageW } = await callGoogleVision(imageBase64, imageMediaType ?? "image/jpeg", apiKey);
 
-    const screenType = detectScreenType(words);
+    const screenType = detectScreenType(words, rawText);
 
     if (screenType === "status") {
       const statusSlots = await parseStatusScreen(words, imageW);
-      // デバッグ: マージトークンとアンカー検出状況
-      const merged = mergeWordFragments(words);
       return NextResponse.json({
         screenType,
         result: { statusSlots },
+        rawText,
+        wordCount: words.length,
+      });
+    }
+
+    if (screenType === "rank") {
+      const { rank, rating } = parseRankScreen(words, rawText);
+      return NextResponse.json({
+        screenType,
+        result: { rank, rating },
         rawText,
         wordCount: words.length,
       });

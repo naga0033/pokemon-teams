@@ -177,6 +177,7 @@ export default function IngestPage() {
   const [savedTeamId, setSavedTeamId] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [ratingInput, setRatingInput] = useState<string>("");
+  const [rankInput, setRankInput] = useState<string>("");
 
   const updatePokemon = useCallback(
     (slot: number, updater: (pokemon: ParsedPokemon) => ParsedPokemon) => {
@@ -363,7 +364,64 @@ export default function IngestPage() {
     [],
   );
 
-  /** 複数画像を全て解析: 能力画面 → ベスト選択、ステータス画面 → 努力値マージ */
+  /** 1枚を Google Vision パイプラインで解析する */
+  const callGvisionApi = useCallback(
+    async (dataUrl: string): Promise<{
+      screenType: "ability" | "status" | "rank" | "unknown";
+      result: Record<string, unknown>;
+      rawText: string | null;
+      error?: string;
+    }> => {
+      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) return { screenType: "unknown", result: {}, rawText: null, error: "画像形式不正" };
+      const [, mediaType, base64] = match;
+      try {
+        const res = await fetch("/api/analyze-team-gvision", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64: base64, imageMediaType: mediaType }),
+        });
+        const data = await res.json();
+        if (!res.ok) return { screenType: "unknown", result: {}, rawText: data?.rawText ?? null, error: data?.error ?? "解析失敗" };
+        return {
+          screenType: (data.screenType ?? "unknown") as "ability" | "status" | "rank" | "unknown",
+          result: (data.result ?? {}) as Record<string, unknown>,
+          rawText: data.rawText ?? null,
+        };
+      } catch (err) {
+        return { screenType: "unknown", result: {}, rawText: null, error: err instanceof Error ? err.message : "通信エラー" };
+      }
+    },
+    [],
+  );
+
+  /** ステータススロット（gvision 形式）を ParsedPokemon の nature/stats/evs へ変換 */
+  const statusSlotToPokemonFields = useCallback(
+    (slot: {
+      slot: number;
+      name?: string;
+      nature?: string | null;
+      stats?: Record<string, { actual: number | null; ev: number | null }>;
+    }) => {
+      const stats: StatValues = { hp: 0, attack: 0, defense: 0, spAtk: 0, spDef: 0, speed: 0 };
+      const evs: StatValues = { hp: 0, attack: 0, defense: 0, spAtk: 0, spDef: 0, speed: 0 };
+      let hasStats = false;
+      let hasEvs = false;
+      for (const k of STAT_KEYS) {
+        const row = slot.stats?.[k as string];
+        if (row?.actual != null) { stats[k] = row.actual; hasStats = true; }
+        if (row?.ev != null) { evs[k] = row.ev; hasEvs = true; }
+      }
+      return {
+        nature: slot.nature ?? undefined,
+        stats: hasStats ? stats : undefined,
+        evs: hasEvs ? evs : undefined,
+      };
+    },
+    [],
+  );
+
+  /** 複数画像を Google Vision で並列解析し、画面タイプ別にマージ */
   const analyzeAllImages = useCallback(
     async (images: TweetData["images"]) => {
       setStage("analyzing");
@@ -371,45 +429,67 @@ export default function IngestPage() {
       setParsed(null);
       setRawText(null);
 
-      // Phase 1: 全画像を能力画面として解析、ベストを選ぶ
-      let best: {
-        index: number;
-        parsed: ParsedTeam | null;
-        rawText: string | null;
-        score: number;
-      } = { index: 0, parsed: null, rawText: null, score: -1 };
+      // 全画像並列解析
+      const limit = Math.min(images.length, 8);
+      const results = await Promise.all(
+        images.slice(0, limit).map((img) => callGvisionApi(img.dataUrl)),
+      );
+
+      // 画面タイプ別に分類
+      const abilityResults: Array<{ index: number; pokemons: ParsedPokemon[]; rawText: string | null }> = [];
+      const statusResults: Array<{ index: number; slots: Array<Record<string, unknown>> }> = [];
+      const rankResults: Array<{ index: number; rank: number | null; rating: number | null }> = [];
       let lastError: string | null = null;
-      let detectedRatingFromImage: number | null = null;
-      const limit = Math.min(images.length, 4);
+      let lastRawText: string | null = null;
 
-      for (let i = 0; i < limit; i++) {
-        const result = await callAnalyzeApi(images[i].dataUrl);
-        if (result.error) lastError = result.error;
-        const parsedTeam = result.parsed as ParsedTeam | null;
-        // 各解析結果からレートを収集 (バトル画面に写ってることが多い)
-        const maybeRating = (result.parsed as { rating?: unknown })?.rating;
-        if (typeof maybeRating === "number" && Number.isFinite(maybeRating) && maybeRating >= 1000 && maybeRating <= 3000) {
-          if (detectedRatingFromImage == null || maybeRating > detectedRatingFromImage) {
-            detectedRatingFromImage = maybeRating;
-          }
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        if (r.error) lastError = r.error;
+        if (r.rawText) lastRawText = r.rawText;
+        if (r.screenType === "ability") {
+          const pokemons = (r.result.pokemons as ParsedPokemon[] | undefined) ?? [];
+          abilityResults.push({ index: i, pokemons, rawText: r.rawText });
+        } else if (r.screenType === "status") {
+          const slots = (r.result.statusSlots as Array<Record<string, unknown>> | undefined) ?? [];
+          statusResults.push({ index: i, slots });
+        } else if (r.screenType === "rank") {
+          rankResults.push({
+            index: i,
+            rank: (r.result.rank as number | null) ?? null,
+            rating: (r.result.rating as number | null) ?? null,
+          });
         }
-        const score = scoreResult(parsedTeam);
-        if (score > best.score) {
-          best = { index: i, parsed: parsedTeam, rawText: result.rawText, score };
-        }
-        // 6匹×(名前1+特性2+持ち物2+技4×2)=66が満点。30以上なら十分
-        if (score >= 30) break;
       }
 
-      // 画像から検出したレートがあれば入力欄を更新 (ツイート本文抽出より優先)
-      if (detectedRatingFromImage != null) {
-        setRatingInput(String(detectedRatingFromImage));
+      // 順位/レート画面の結果を入力欄へ反映（複数あれば最後のもの優先）
+      for (const rr of rankResults) {
+        if (rr.rating != null) setRatingInput(String(rr.rating));
+        if (rr.rank != null) setRankInput(String(rr.rank));
       }
 
-      if (best.score <= 0) {
-        setActiveImageIndex(best.index);
-        setParsed(best.parsed);
-        setRawText(best.rawText);
+      // 能力画面のベストを選ぶ
+      const scoreAbility = (ps: ParsedPokemon[]) =>
+        ps.reduce((s, p) => s + (p.name ? 1 : 0) + (p.ability ? 2 : 0) + (p.item ? 2 : 0)
+          + Math.min(p.moves.filter((m) => m && m.trim()).length, 4) * 2, 0);
+
+      let bestIndex = 0;
+      let bestAbility: ParsedPokemon[] | null = null;
+      let bestScore = -1;
+      let bestRaw: string | null = null;
+      for (const a of abilityResults) {
+        const sc = scoreAbility(a.pokemons);
+        if (sc > bestScore) {
+          bestScore = sc;
+          bestIndex = a.index;
+          bestAbility = a.pokemons;
+          bestRaw = a.rawText;
+        }
+      }
+
+      if (!bestAbility || bestScore <= 0) {
+        setActiveImageIndex(rankResults[0]?.index ?? statusResults[0]?.index ?? 0);
+        setParsed(null);
+        setRawText(lastRawText);
         setError(
           lastError ??
             "どの画像からもポケモン情報を読み取れませんでした。能力画面のスクショ付きツイートで試してください。",
@@ -418,57 +498,53 @@ export default function IngestPage() {
         return;
       }
 
-      if (best.parsed) {
-        best.parsed = await refineIncompleteSlots(images[best.index].dataUrl, best.parsed);
-      }
+      // 基礎 ParsedTeam を組み立て（不足フィールドを埋める）
+      const basePokemons: ParsedPokemon[] = bestAbility.map((p, i) => ({
+        slot: p.slot ?? i + 1,
+        name: p.name ?? null,
+        slug: p.slug ?? null,
+        ability: p.ability ?? null,
+        item: p.item ?? null,
+        teraType: p.teraType ?? null,
+        gender: p.gender ?? "unknown",
+        moves: Array.isArray(p.moves) ? p.moves.filter((m): m is string => typeof m === "string" && m.length > 0) : [],
+      }));
+      let mergedTeam: ParsedTeam = {
+        teamTitle: null,
+        trainerName: null,
+        teamCode: null,
+        pokemons: basePokemons,
+      };
 
-      // Phase 2: 他の画像をステータス画面として解析し、努力値をマージ
-      if (best.parsed && images.length > 1) {
-        let mergedTeam = best.parsed;
-        for (let i = 0; i < limit; i++) {
-          if (i === best.index) continue; // 能力画面はスキップ
-          const statsResult = await callStatsApi(images[i].dataUrl);
-          // ステータス解析からもレートを拾う (バトル画面はここで解析される)
-          if (statsResult.rating != null) {
-            if (detectedRatingFromImage == null || statsResult.rating > detectedRatingFromImage) {
-              detectedRatingFromImage = statsResult.rating;
-              setRatingInput(String(statsResult.rating));
-            }
-          }
-          if (statsResult.stats.length > 0) {
-            mergedTeam = {
-              ...mergedTeam,
-              pokemons: mergedTeam.pokemons.map((p) => {
-                const matching = statsResult.stats.find((s) => s.slot === p.slot);
-                if (!matching) return p;
-                const candidateScore = scoreStatsCandidate(matching);
-                const currentScore = scoreStatsCandidate(p);
-                if (candidateScore < currentScore) return p;
-                return {
-                  ...p,
-                  nature: matching.nature ?? p.nature,
-                  stats:
-                    scoreStatBlock(matching.stats) >= scoreStatBlock(p.stats)
-                      ? matching.stats ?? p.stats
-                      : p.stats,
-                  evs:
-                    scoreStatBlock(matching.evs) >= scoreStatBlock(p.evs)
-                      ? matching.evs ?? p.evs
-                      : p.evs,
-                };
-              }),
+      // ステータス画面をマージ（名前優先、不足ならスロット位置）
+      for (const st of statusResults) {
+        mergedTeam = {
+          ...mergedTeam,
+          pokemons: mergedTeam.pokemons.map((p) => {
+            // スロット or 名前のどちらかが一致するステータスを探す
+            const matching = st.slots.find(
+              (s) =>
+                (typeof s.name === "string" && s.name === p.name) ||
+                (typeof s.slot === "number" && s.slot === p.slot),
+            );
+            if (!matching) return p;
+            const fields = statusSlotToPokemonFields(matching as Parameters<typeof statusSlotToPokemonFields>[0]);
+            return {
+              ...p,
+              nature: fields.nature ?? p.nature,
+              stats: fields.stats ?? p.stats,
+              evs: fields.evs ?? p.evs,
             };
-          }
-        }
-        best.parsed = mergedTeam;
+          }),
+        };
       }
 
-      setActiveImageIndex(best.index);
-      setParsed(best.parsed);
-      setRawText(best.rawText);
+      setActiveImageIndex(bestIndex);
+      setParsed(mergedTeam);
+      setRawText(bestRaw ?? lastRawText);
       setStage("idle");
     },
-    [callAnalyzeApi, callStatsApi, refineIncompleteSlots],
+    [callGvisionApi, statusSlotToPokemonFields],
   );
 
   const handleFetch = useCallback(async () => {
@@ -494,6 +570,7 @@ export default function IngestPage() {
       // ツイート本文からレートを自動抽出 (あれば)
       const detectedRating = parseRatingFromText((data as TweetData).text);
       setRatingInput(detectedRating != null ? String(detectedRating) : "");
+      setRankInput("");
 
       if (data.images?.length > 0) {
         await analyzeAllImages(data.images);
@@ -516,13 +593,35 @@ export default function IngestPage() {
       setError(null);
       setParsed(null);
       setRawText(null);
-      const result = await callAnalyzeApi(tweetData.images[index].dataUrl);
-      if (result.rawText) setRawText(result.rawText);
-      if (result.parsed) setParsed(result.parsed as ParsedTeam);
-      if (result.error) setError(result.error);
+      const r = await callGvisionApi(tweetData.images[index].dataUrl);
+      if (r.rawText) setRawText(r.rawText);
+      if (r.screenType === "ability") {
+        const pokemons = (r.result.pokemons as ParsedPokemon[] | undefined) ?? [];
+        setParsed({
+          teamTitle: null,
+          trainerName: null,
+          teamCode: null,
+          pokemons: pokemons.map((p, i) => ({
+            slot: p.slot ?? i + 1,
+            name: p.name ?? null,
+            slug: p.slug ?? null,
+            ability: p.ability ?? null,
+            item: p.item ?? null,
+            teraType: p.teraType ?? null,
+            gender: p.gender ?? "unknown",
+            moves: Array.isArray(p.moves) ? p.moves.filter((m): m is string => typeof m === "string" && m.length > 0) : [],
+          })),
+        });
+      } else if (r.screenType === "rank") {
+        const rk = r.result.rank as number | null | undefined;
+        const rt = r.result.rating as number | null | undefined;
+        if (rk != null) setRankInput(String(rk));
+        if (rt != null) setRatingInput(String(rt));
+      }
+      if (r.error) setError(r.error);
       setStage("idle");
     },
-    [tweetData, activeImageIndex, callAnalyzeApi],
+    [tweetData, activeImageIndex, callGvisionApi],
   );
 
   const loading = stage !== "idle";
@@ -742,6 +841,30 @@ export default function IngestPage() {
                 </button>
               )}
             </div>
+
+            {/* 順位入力 (任意) */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold text-slate-600">
+                順位 (任意)
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={rankInput}
+                onChange={(e) => setRankInput(e.target.value)}
+                placeholder="例: 42"
+                className="w-24 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-cyan-400 focus:outline-none"
+              />
+              {rankInput && (
+                <button
+                  type="button"
+                  onClick={() => setRankInput("")}
+                  className="text-[11px] text-slate-400 hover:text-slate-700"
+                >
+                  クリア
+                </button>
+              )}
+            </div>
             <button
               type="button"
               disabled={stage === "saving" || !!savedTeamId}
@@ -754,6 +877,9 @@ export default function IngestPage() {
                   const ratingNum = Number.parseFloat(ratingInput);
                   const ratingPayload =
                     Number.isFinite(ratingNum) && ratingNum > 0 ? ratingNum : null;
+                  const rankNum = Number.parseInt(rankInput, 10);
+                  const rankPayload =
+                    Number.isFinite(rankNum) && rankNum > 0 ? rankNum : null;
                   const res = await fetch("/api/teams/save", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -763,6 +889,7 @@ export default function IngestPage() {
                       tweetUrl: tweetData.tweetUrl,
                       format: saveFormat,
                       rating: ratingPayload,
+                      rank: rankPayload,
                       pokemons: parsed.pokemons,
                     }),
                   });
