@@ -122,7 +122,16 @@ export async function updateTeam(id: string, updates: Partial<Team>): Promise<vo
   if (fallbackError) throw new Error(fallbackError.message);
 }
 
+// Supabase Disk IO 節約のため 10 回に 1 回だけ実際に DB 更新する。
+// 代わりに +10 足して期待値を合わせるサンプリング方式。多少ブレるが IO を 90% 削減。
+const VIEW_COUNT_SAMPLE_RATE = 10;
+
 export async function incrementTeamViewCount(id: string): Promise<number | null> {
+  // サンプリング: 90% の確率でスキップ
+  if (Math.floor(Math.random() * VIEW_COUNT_SAMPLE_RATE) !== 0) {
+    return null;
+  }
+
   const { data, error } = await supabase
     .from("teams")
     .select("view_count")
@@ -135,7 +144,7 @@ export async function incrementTeamViewCount(id: string): Promise<number | null>
   }
 
   const current = typeof data.view_count === "number" ? data.view_count : 0;
-  const next = current + 1;
+  const next = current + VIEW_COUNT_SAMPLE_RATE;
   const { error: updateError } = await supabase
     .from("teams")
     .update({ view_count: next })

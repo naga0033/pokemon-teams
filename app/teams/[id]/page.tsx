@@ -9,7 +9,8 @@ import { DUMMY_TEAMS } from "@/lib/dummy-teams";
 import { loadSavedTeams } from "@/lib/saved-teams";
 import { isAdminSession } from "@/lib/admin-auth";
 
-export const dynamic = "force-dynamic";
+// Supabase Disk IO 節約のため 60 秒 ISR キャッシュ
+export const revalidate = 60;
 
 type Props = {
   params: Promise<{ id: string }>;

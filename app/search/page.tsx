@@ -12,7 +12,9 @@ import { loadSavedTeams } from "@/lib/saved-teams";
 import type { Format, TeamSort } from "@/lib/types";
 import { getUsageSuggestNames } from "@/lib/usage-ranking";
 
-export const dynamic = "force-dynamic";
+// Supabase Disk IO 節約のため 60 秒 ISR キャッシュ
+// 新規登録は「/admin/ingest/resave=1」のリンク等で revalidate 可能
+export const revalidate = 60;
 
 type SearchPageProps = {
   searchParams: Promise<{

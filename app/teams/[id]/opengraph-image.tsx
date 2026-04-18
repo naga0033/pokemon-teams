@@ -10,6 +10,8 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = "ポケモン構築カード";
 export const runtime = "nodejs";
+// OG 画像は 1 時間キャッシュ (IO 節約)
+export const revalidate = 3600;
 
 type Props = { params: Promise<{ id: string }> };
 
